@@ -110,6 +110,19 @@ footer{padding:26px 0 96px;color:var(--muted);font-size:14px}
 @media(min-width:640px){.row{grid-template-columns:1fr 1fr}}
 .note{color:var(--muted);font-size:14px;margin:0}
 input,select,textarea{border-color:var(--line)}
+
+footer{text-align:center}
+footer p{margin:0 0 8px}
+footer .lic{margin:0 0 14px;line-height:1.7;color:var(--ink);font-size:15px}
+footer .fl a{color:var(--muted);margin:0 10px;text-decoration:underline}
+footer .fbtns{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;margin:0 0 30px}
+footer.fb{background:var(--navy);color:var(--on);padding:48px 0 96px}
+footer.fb .lic{color:var(--on)}
+footer.fb .fl a{color:#c3d1dc}
+@media(min-width:900px){footer.fb{padding-bottom:48px}}
+label.agree{display:flex;gap:10px;align-items:flex-start;font-weight:400;font-size:15px;line-height:1.45}
+label.agree input{width:20px;height:20px;flex:none;margin:2px 0 0;padding:0}
+label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 </style>
 </head>
 <body>
@@ -151,11 +164,12 @@ input,select,textarea{border-color:var(--line)}
 <label>Upload your resume (optional)<input type="file" name="attachment" id="rf" accept=".pdf,.doc,.docx,.txt,image/*"></label>
 <p class="note" id="pn">PDF, Word, or a photo of your resume. 5 MB maximum.</p>
 <label style="display:flex;gap:10px;align-items:flex-start;font-weight:500"><input type="checkbox" name="certify" value="yes" required style="width:auto;margin-top:5px"><span>I confirm the information above is true and complete to the best of my knowledge.</span></label>
+<label class="agree"><input type="checkbox" name="agreed_to_terms_and_privacy" value="Yes" required><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and acknowledge the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
 <button class="btn" type="submit" id="sb">Submit application</button>
 <p class="note">Please do not send your Social Security number, ID numbers, or bank details. If we make you an offer, we will collect what we need for hiring paperwork then. P.H. Works Inc. is an equal opportunity employer.</p>
 </form>
 </div></section></main>
-<footer><div class="wrap">&copy; P.H. Works Inc. Licensed and insured.</div></footer>
+<footer><div class="wrap"><p class="lic"><strong>P.H. WORKS INC.</strong><br>Menachem Cohen<br>N.Y.C. licensed plumber #002436<br>388 East 198th Street, Bronx, NY 10458</p><p class="fl"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></p><p>&copy; P.H. Works Inc. Licensed and insured.</p></div></footer>
 <script>
 var f=document.getElementById('q'),rf=document.getElementById('rf'),pn=document.getElementById('pn');
 rf.addEventListener('change',function(){if(rf.files[0]&&rf.files[0].size>5*1024*1024){pn.textContent='That file is over 5 MB. Please choose a smaller one.';rf.value=''}});
