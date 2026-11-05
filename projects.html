@@ -135,14 +135,6 @@ button.proj .ct{display:block;margin-top:4px;color:var(--muted);font-size:14px}
 button.proj:focus-visible{outline:3px solid var(--flame);outline-offset:2px}
 .pmsg{text-align:center;color:var(--muted);font-size:18px;margin:30px auto;max-width:46ch}
 .pmsg a{color:var(--flame);font-weight:700;text-decoration:none}
-#lb{position:fixed;inset:0;z-index:50;display:none;flex-direction:column;align-items:center;justify-content:center;padding:18px;background:rgba(5,12,20,.95)}
-#lb.on{display:flex}
-#lb img{max-width:100%;max-height:76vh;object-fit:contain;border-radius:8px}
-#lb .lcap{color:#e9eff3;margin-top:14px;text-align:center;font-size:16px}
-#lb .lcap b{display:block;font-size:19px;margin-bottom:2px}
-#lb button{position:absolute;width:46px;height:46px;border:0;border-radius:50%;background:rgba(255,255,255,.16);color:#fff;font-size:26px;line-height:1;cursor:pointer}
-#lb button:hover{background:rgba(255,255,255,.3)}
-#lb .x{top:14px;right:14px}#lb .pv{left:12px;top:50%}#lb .nx{right:12px;top:50%}
 /* liquid glass header + centered intro */
 .pg{position:relative;overflow:hidden;background:radial-gradient(900px 420px at 15% -10%,rgba(209,74,5,.35),transparent 60%),radial-gradient(800px 460px at 95% 10%,rgba(70,140,200,.35),transparent 60%),var(--navy)}
 .pg .wrap{position:relative}
@@ -157,6 +149,27 @@ button.proj:focus-visible{outline:3px solid var(--flame);outline-offset:2px}
 .pg .top{text-align:center}
 .pg h1{max-width:none;margin:0 auto}
 .pg .top p{margin:16px auto 0}
+
+/* project filters + gallery (admin-driven) */
+.pfilters{display:flex;flex-wrap:wrap;gap:10px;margin:0 0 14px}
+.pfilters:empty{display:none}
+.pfilters button{font:600 15px "Hanken Grotesk",sans-serif;padding:9px 18px;border-radius:999px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer}
+.pfilters button:hover{border-color:var(--flame)}
+.pfilters button[aria-pressed="true"]{background:var(--flame);border-color:var(--flame);color:#fff}
+.pfilters.sub button{font-size:14px;padding:7px 14px}
+.pgrid{margin-top:22px}
+#lb{position:fixed;inset:0;z-index:50;display:none;overflow-y:auto;-webkit-overflow-scrolling:touch;background:rgba(5,12,20,.96);padding:72px 18px 60px}
+#lb.on{display:block}
+#lb .box{max-width:820px;margin:0 auto;color:#e9eff3}
+#lb h2{font-size:clamp(28px,5vw,40px);margin:0 0 8px}
+#lb .meta{color:#9db0be;font-size:15px;margin:0 0 14px}
+#lb .desc{white-space:pre-line;margin:0 0 28px;color:#d3dee7}
+#lb figure{margin:0 0 30px}
+#lb figure img{width:100%;height:auto;border-radius:10px;background:#0c2234}
+#lb .tag{display:inline-block;background:var(--flame);color:#fff;font-weight:700;font-size:13px;letter-spacing:.04em;text-transform:uppercase;padding:4px 12px;border-radius:999px;margin-top:12px}
+#lb figcaption{margin-top:8px;white-space:pre-line;color:#d3dee7}
+#lb .x{position:fixed;top:max(14px,env(safe-area-inset-top));right:14px;width:46px;height:46px;border:0;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:26px;line-height:1;cursor:pointer;z-index:2}
+#lb .x:hover{background:rgba(255,255,255,.3)}
 </style>
 </head>
 <body>
@@ -178,87 +191,94 @@ button.proj:focus-visible{outline:3px solid var(--flame);outline-offset:2px}
 </div>
 </div></div>
 <main><section><div class="wrap">
+<div class="pfilters" id="pcats" role="group" aria-label="Project category"></div>
+<div class="pfilters sub" id="psubs" role="group" aria-label="Project type"></div>
 <div class="pgrid" id="pgrid"></div>
 <p class="pmsg" id="pmsg">Loading projects...</p>
 <noscript><p class="pmsg">Please turn on JavaScript to see our projects, or call us at <a href="tel:+17184141083">(718) 414-1083</a>.</p></noscript>
 </div></section></main>
 <div id="lb" role="dialog" aria-modal="true" aria-label="Project photos">
 <button class="x" id="lx" aria-label="Close">&times;</button>
-<button class="pv" id="lp" aria-label="Previous photo">&#8249;</button>
-<img id="li" alt="">
-<button class="nx" id="ln" aria-label="Next photo">&#8250;</button>
-<div class="lcap" id="lc"></div>
+<div class="box" id="lbox"></div>
 </div>
 <script>
 var mb=document.getElementById('mb'),nv=document.getElementById('nv');
 mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
 nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
 </script>
+<script src="supabase-config.js"></script>
 <script>
-/* Projects load automatically from the "project-photos" folder in the GitHub repo.
-   One sub-folder = one project. Folder name = project name. Photos inside = the gallery. */
-var OWNER='josephz2026',REPO='phworks-site',DIR='project-photos';
-var IMG=/\.(jpe?g|png|webp|gif|avif)$/i;
+/* Projects come from the admin page (admin.html). Add or edit them there. */
+(function(){
 var grid=document.getElementById('pgrid'),msg=document.getElementById('pmsg');
-var lb=document.getElementById('lb'),li=document.getElementById('li'),lc=document.getElementById('lc');
-var cur=null,idx=0;
-function enc(p){return p.split('/').map(encodeURIComponent).join('/')}
-function nice(n){return n.replace(/^\d+[\s._-]+/,'').replace(/_+/g,' ').replace(/\s+/g,' ').trim()||n}
-function sortN(a,b){return a.localeCompare(b,undefined,{numeric:true,sensitivity:'base'})}
-function get(branch){return fetch('https://api.github.com/repos/'+OWNER+'/'+REPO+'/git/trees/'+branch+'?recursive=1').then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})}
-function build(tree){
-  var by={};
-  (tree.tree||[]).forEach(function(t){
-    if(t.type!=='blob'||t.path.indexOf(DIR+'/')!==0)return;
-    var p=t.path.split('/');
-    if(p.length!==3||!IMG.test(p[2]))return;
-    (by[p[1]]=by[p[1]]||[]).push(p[2]);
-  });
-  return Object.keys(by).sort(sortN).map(function(k){
-    return {folder:k,name:nice(k),files:by[k].sort(sortN)};
+var catBox=document.getElementById('pcats'),subBox=document.getElementById('psubs');
+var lb=document.getElementById('lb'),box=document.getElementById('lbox');
+var ORDER=['Boiler','Pumps','New construction','Gas re-pipes'];
+var all=[],fCat='',fSub='';
+function el(t,c,x){var e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e}
+function uniq(a){return a.filter(function(v,i){return v&&a.indexOf(v)===i})}
+function pills(wrap,items,cur,allLabel,on){
+  wrap.innerHTML='';
+  if(items.length<2)return;
+  [''].concat(items).forEach(function(v){
+    var b=el('button','',v||allLabel);b.type='button';b.setAttribute('aria-pressed',String(v===cur));
+    b.addEventListener('click',function(){on(v)});wrap.appendChild(b);
   });
 }
-function src(pr,f){return DIR+'/'+enc(pr.folder)+'/'+enc(f)}
-function render(list){
-  if(!list.length){msg.textContent='Coming soon.';return}
+function filters(){
+  var cats=uniq(all.map(function(p){return p.category})).sort(function(a,b){
+    var i=ORDER.indexOf(a),j=ORDER.indexOf(b);
+    if(i<0&&j<0)return a.localeCompare(b);if(i<0)return 1;if(j<0)return -1;return i-j});
+  pills(catBox,cats,fCat,'All',function(v){fCat=v;fSub='';filters();render()});
+  var subs=fCat?uniq(all.filter(function(p){return p.category===fCat}).map(function(p){return p.subtype})):[];
+  pills(subBox,subs,fSub,'All '+fCat,function(v){fSub=v;filters();render()});
+}
+function render(){
+  var list=all.filter(function(p){return(!fCat||p.category===fCat)&&(!fSub||p.subtype===fSub)});
+  grid.innerHTML='';
+  if(!list.length){msg.style.display='';msg.textContent=all.length?'No projects here yet.':'Coming soon.';return}
   msg.style.display='none';
-  list.forEach(function(pr){
-    var b=document.createElement('button');b.type='button';b.className='proj';
-    var cov=document.createElement('span');cov.className='cov';cov.style.display='block';
-    var im=document.createElement('img');im.src=src(pr,pr.files[0]);im.alt=pr.name;im.loading='lazy';im.decoding='async';
-    cov.appendChild(im);
-    var cap=document.createElement('span');cap.className='cap';
-    var nm=document.createElement('span');nm.className='nm';nm.textContent=pr.name;
-    var ct=document.createElement('span');ct.className='ct';ct.textContent=pr.files.length+(pr.files.length===1?' photo':' photos');
-    cap.appendChild(nm);cap.appendChild(ct);b.appendChild(cov);b.appendChild(cap);
-    b.addEventListener('click',function(){open(pr,0)});
+  list.forEach(function(p){
+    var photos=p.photos||[];
+    var b=el('button','proj');b.type='button';
+    var cov=el('span','cov');cov.style.display='block';
+    if(photos[0]){var im=document.createElement('img');im.src=photos[0].url;im.alt=p.title;im.loading='lazy';im.decoding='async';cov.appendChild(im)}
+    var cap=el('span','cap');
+    var meta=[p.category,p.subtype].filter(Boolean).join(' \u00b7 ');
+    var n=photos.length+(photos.length===1?' photo':' photos');
+    cap.appendChild(el('span','nm',p.title));
+    cap.appendChild(el('span','ct',(meta?meta+' \u00b7 ':'')+n));
+    b.appendChild(cov);b.appendChild(cap);
+    b.addEventListener('click',function(){open(p)});
     grid.appendChild(b);
   });
 }
-function show(){
-  li.src=src(cur,cur.files[idx]);li.alt=cur.name+' photo '+(idx+1);
-  lc.innerHTML='';var b=document.createElement('b');b.textContent=cur.name;lc.appendChild(b);
-  lc.appendChild(document.createTextNode((idx+1)+' of '+cur.files.length));
-  var many=cur.files.length>1;document.getElementById('lp').style.display=many?'':'none';document.getElementById('ln').style.display=many?'':'none';
+function open(p){
+  box.innerHTML='';
+  box.appendChild(el('h2','',p.title));
+  var meta=[p.category,p.subtype].filter(Boolean).join(' \u00b7 ');
+  if(meta)box.appendChild(el('p','meta',meta));
+  if(p.description)box.appendChild(el('p','desc',p.description));
+  (p.photos||[]).forEach(function(ph,i){
+    var f=el('figure');
+    var im=document.createElement('img');im.src=ph.url;im.alt=(ph.caption||p.title)+' (photo '+(i+1)+')';im.loading='lazy';im.decoding='async';
+    f.appendChild(im);
+    if(ph.label)f.appendChild(el('span','tag',ph.label));
+    if(ph.caption)f.appendChild(el('figcaption','',ph.caption));
+    box.appendChild(f);
+  });
+  lb.classList.add('on');lb.scrollTop=0;document.body.style.overflow='hidden';
 }
-function open(pr,i){cur=pr;idx=i;show();lb.classList.add('on');document.body.style.overflow='hidden'}
-function close(){lb.classList.remove('on');document.body.style.overflow='';li.src=''}
-function step(d){idx=(idx+d+cur.files.length)%cur.files.length;show()}
+function close(){lb.classList.remove('on');document.body.style.overflow='';box.innerHTML=''}
 document.getElementById('lx').addEventListener('click',close);
-document.getElementById('lp').addEventListener('click',function(){step(-1)});
-document.getElementById('ln').addEventListener('click',function(){step(1)});
 lb.addEventListener('click',function(e){if(e.target===lb)close()});
-document.addEventListener('keydown',function(e){if(!lb.classList.contains('on'))return;if(e.key==='Escape')close();if(e.key==='ArrowLeft')step(-1);if(e.key==='ArrowRight')step(1)});
-var sx=0;lb.addEventListener('touchstart',function(e){sx=e.changedTouches[0].clientX},{passive:true});
-lb.addEventListener('touchend',function(e){var d=e.changedTouches[0].clientX-sx;if(Math.abs(d)>50&&cur.files.length>1)step(d<0?1:-1)},{passive:true});
-function fail(){msg.textContent='Coming soon.'}
-var KEY='phw_projects_v1',cached=null;
-try{var c=JSON.parse(sessionStorage.getItem(KEY)||'null');if(c&&Date.now()-c.t<600000)cached=c.d}catch(e){}
-if(cached){render(cached)}else{
-  get('main').catch(function(){return get('master')}).then(function(t){
-    var d=build(t);try{sessionStorage.setItem(KEY,JSON.stringify({t:Date.now(),d:d}))}catch(e){}
-    render(d)}).catch(fail);
-}
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&lb.classList.contains('on'))close()});
+if(typeof PHW_SUPABASE_URL==='undefined'||PHW_SUPABASE_URL.indexOf('YOUR-')>-1){msg.textContent='Coming soon.';return}
+fetch(PHW_SUPABASE_URL+'/rest/v1/projects?published=eq.true&order=created_at.desc&select=*',{headers:{apikey:PHW_SUPABASE_KEY,Authorization:'Bearer '+PHW_SUPABASE_KEY}})
+  .then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
+  .then(function(rows){all=rows;filters();render()})
+  .catch(function(){msg.innerHTML='Projects are not loading right now. Please call us at <a href="tel:+17184141083">(718) 414-1083</a>.'});
+})();
 </script>
 <footer><div class="wrap"><p class="lic"><strong>P.H. WORKS INC.</strong><br>Menachem Cohen<br>N.Y.C. licensed plumber #002436<br>388 East 198th Street, Bronx, NY 10458</p><p class="fl"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></p><p>&copy; P.H. Works Inc. Licensed and insured.</p></div></footer>
 </body>
