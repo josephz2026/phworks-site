@@ -90,7 +90,6 @@
     </div>
     <button class="btn primary" style="width:100%" type="submit">Log in</button>
     <p class="err" id="loginErr" role="alert"></p>
-    <p class="meta" id="cfgInfo" style="font-size:.8rem;margin-top:.75rem"></p>
   </form>
 </section>
 
@@ -207,13 +206,6 @@ $('eye').addEventListener('click', () => {
   $('eye').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
   $('eye').setAttribute('aria-pressed', String(show));
 });
-
-// Shows which project and key this page is using, to catch paste mistakes
-(function(){
-  const u = String(PHW_SUPABASE_URL || '').replace(/^https?:\/\//, '');
-  const k = String(PHW_SUPABASE_KEY || '');
-  $('cfgInfo').textContent = 'Connecting to ' + u + ' \u00b7 key starts "' + k.slice(0, 6) + '" and is ' + k.length + ' characters';
-})();
 $('logout').addEventListener('click', () => sb.auth.signOut());
 
 /* ---------- list ---------- */
