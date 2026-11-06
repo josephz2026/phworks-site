@@ -87,7 +87,7 @@ function showLogin(note) {
       email: email.value.trim(),
       options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname }
     });
-    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link. Check the email address, or ask Joseph to add you.'; }
+    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link: ' + error.message; }
     else out.textContent = 'Check your email for the sign-in link.';
   }},
     el('h1', {}, 'PH Works staff'),
