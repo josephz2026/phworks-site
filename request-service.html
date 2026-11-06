@@ -174,16 +174,12 @@ label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 <div>
 <div class="tag"><i></i>Emergency line</div>
 <h2>Water or gas emergency?</h2>
-<p>Don&rsquo;t wait on a form. <b>Call us now</b> and we&rsquo;ll get someone moving.</p>
+<p>Don&rsquo;t wait on a form. <b>Call us now</b> and we&rsquo;ll get someone moving. Smell gas? Leave the building and call 911 first.</p>
 </div>
 <a class="btn" href="tel:+17184141083">Call (718) 414-1083</a>
 </div>
-<form id="q" action="https://formsubmit.co/joseph.z@phworksinc.com" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="_subject" value="Service request">
-<input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
-<input type="hidden" name="_template" value="table">
-<input type="hidden" name="_next" value="https://josephz2026.github.io/phworks-site/thanks.html">
-<input type="hidden" name="_autoresponse" value="Thanks for contacting P.H. Works Inc. We got your request and will get back to you within 24 hours. If you have not heard from us by then, please give us a call at (718) 414-1083.">
+<form id="q" method="post">
+<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
 <div class="row"><label>Name<input name="n" required autocomplete="name"></label><label>Phone<input name="p" required autocomplete="tel" type="tel"></label></div>
 <label>Email<input name="email" type="email" autocomplete="email"></label>
 <div class="row"><label>Service address<input name="a" required autocomplete="street-address"></label><label>Borough<select name="b"><option>Brooklyn</option><option>Manhattan</option><option>Queens</option><option>Bronx</option><option>Staten Island</option></select></label></div>
@@ -207,26 +203,19 @@ label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 </form>
 </div></section></main>
 <footer><div class="wrap"><p class="lic"><strong>P.H. WORKS INC.</strong><br>Menachem Cohen<br>N.Y.C. licensed plumber #002436<br>388 East 198th Street, Bronx, NY 10458</p><p class="fl"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></p><p>&copy; P.H. Works Inc. Licensed and insured.</p></div></footer>
+<script src="submit.js"></script>
 <script>
 var mb=document.getElementById('mb'),nv=document.getElementById('nv');
 mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
 nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
-var f=document.getElementById('q'),fi=f.attachment,pn=document.getElementById('pn'),sb=document.getElementById('sb'),go=false;
-function shrink(file){return new Promise(function(ok){
- var im=new Image(),u=URL.createObjectURL(file);
- im.onload=function(){var m=1600,r=Math.min(1,m/Math.max(im.width,im.height)),c=document.createElement('canvas');
-  c.width=Math.round(im.width*r);c.height=Math.round(im.height*r);c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-  c.toBlob(function(b){URL.revokeObjectURL(u);ok(b?new File([b],file.name.replace(/\.[^.]+$/,'')+'.jpg',{type:'image/jpeg'}):file)},'image/jpeg',.8)};
- im.onerror=function(){ok(file)};im.src=u})}
+var f=document.getElementById('q'),fi=f.elements.attachment,pn=document.getElementById('pn');
 fi.addEventListener('change',function(){if(fi.files.length>5){pn.textContent='Please choose 5 photos or fewer.';fi.value=''}});
-f.addEventListener('submit',function(e){
- if(go)return;e.preventDefault();
- f._subject.value='Service request: '+f.t.value+' ('+f.u.value+') - '+f.n.value;
- var list=Array.prototype.slice.call(fi.files,0,5);
- sb.disabled=true;sb.textContent='Sending...';
- Promise.all(list.map(shrink)).then(function(out){
-  if(out.length&&window.DataTransfer){var dt=new DataTransfer();out.forEach(function(x){dt.items.add(x)});fi.files=dt.files}
-  go=true;f.submit()})});
+PHSubmit({form:f,type:'service',files:function(){return Promise.all(Array.prototype.slice.call(fi.files,0,5).map(PHShrink))},build:function(f){
+ return {
+ name:f.elements.n.value, phone:f.elements.p.value, email:f.elements.email.value, message:f.elements.d.value,
+ 'Service address':f.elements.a.value, 'Borough':f.elements.b.value, 'Service needed':f.elements.t.value,
+ 'How soon':f.elements.u.value,
+ 'Agreed to Terms and Privacy':'Yes'}}});
 </script>
 </body>
 </html>

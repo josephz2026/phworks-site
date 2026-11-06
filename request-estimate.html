@@ -159,12 +159,8 @@ label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 </div></div>
 <main><section><div class="wrap formwrap">
 
-<form id="q" action="https://formsubmit.co/joseph.z@phworksinc.com" method="POST" enctype="multipart/form-data">
-<input type="hidden" name="_subject" value="Estimate request">
-<input type="text" name="_honey" style="display:none" tabindex="-1" autocomplete="off">
-<input type="hidden" name="_template" value="table">
-<input type="hidden" name="_next" value="https://josephz2026.github.io/phworks-site/thanks.html">
-<input type="hidden" name="_autoresponse" value="Thanks for contacting P.H. Works Inc. We got your request and will get back to you within 24 hours. If you have not heard from us by then, please give us a call at (718) 414-1083.">
+<form id="q" method="post">
+<div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
 
 <div class="row"><label>Name<input name="n" required autocomplete="name"></label><label>Company<input name="c" autocomplete="organization"></label></div>
 <div class="row"><label>Phone<input name="p" required autocomplete="tel" type="tel"></label><label>Email<input name="email" required type="email" autocomplete="email"></label></div>
@@ -180,12 +176,18 @@ label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 </form>
 </div></section></main>
 <footer><div class="wrap"><p class="lic"><strong>P.H. WORKS INC.</strong><br>Menachem Cohen<br>N.Y.C. licensed plumber #002436<br>388 East 198th Street, Bronx, NY 10458</p><p class="fl"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></p><p>&copy; P.H. Works Inc. Licensed and insured.</p></div></footer>
+<script src="submit.js"></script>
 <script>
 var mb=document.getElementById('mb'),nv=document.getElementById('nv');
 mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
 nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
 var f=document.getElementById('q');
-f.addEventListener('submit',function(){f._subject.value='Estimate request: '+f.t.value+' - '+f.a.value;var b=document.getElementById('sb');setTimeout(function(){b.disabled=true;b.textContent='Sending...'},0)});
+PHSubmit({form:f,type:'quote',build:function(f){return {
+ name:f.elements.n.value, phone:f.elements.p.value, email:f.elements.email.value, message:f.elements.d.value,
+ 'Company':f.elements.c.value, 'You are a':f.elements.r.value, 'Project type':f.elements.t.value,
+ 'Project address':f.elements.a.value, 'Borough':f.elements.b.value, 'Size':f.elements.z.value,
+ 'Bid due date or timeline':f.elements.w.value, 'Plans link':f.elements.l.value,
+ 'Agreed to Terms and Privacy':'Yes'}}});
 </script>
 </body>
 </html>
