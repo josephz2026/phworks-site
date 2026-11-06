@@ -41,6 +41,21 @@
   .msg { color:var(--muted); padding:20px 0; }
   .err { color:#b91c1c; }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  input[type=text] { width:100%; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
+  details.row summary { cursor:pointer; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .badge { font-size:.75rem; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .badge.live { color:var(--done); border-color:var(--done); }
+  .edit { margin-top:12px; display:grid; gap:12px; }
+  .fld { display:grid; gap:4px; } .fld > span { color:var(--muted); font-size:.9rem; }
+  .fld select, .fld textarea { width:100%; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+  .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+  .thumb { display:grid; gap:6px; }
+  .thumb img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+  .chk { display:flex; align-items:center; gap:8px; }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .date.err { color:#b91c1c; }
 </style>
 </head>
 <body>
@@ -58,9 +73,10 @@ const app = document.getElementById('app');
 
 // Each tab: which roles can open it, which table it reads, which fields to show
 const VIEWS = [
-  { key:'hr', label:'Careers', type:'application', roles:['admin','hr'] },
   { key:'service', label:'Service', type:'service', roles:['admin','service'] },
   { key:'estimating', label:'Construction', type:'quote', roles:['admin','estimating'] },
+  { key:'projects', label:'Projects', custom:true, roles:['admin'] },
+  { key:'hr', label:'Careers', type:'application', roles:['admin','hr'] },
 ];
 const STATUSES = ['new','in progress','done'];
 
@@ -116,7 +132,7 @@ function showDash(email, role) {
   const tabs = el('div', { class:'tabs', role:'tablist' });
   const select = (v) => {
     [...tabs.children].forEach(b => b.setAttribute('aria-selected', b.dataset.key === v.key));
-    loadView(v, list);
+    if (v.custom) renderProjects(list); else loadView(v, list);
   };
   views.forEach(v => tabs.append(el('button', { role:'tab', 'data-key':v.key, 'aria-selected':'false', onclick:() => select(v) }, v.label)));
 
@@ -166,6 +182,175 @@ function card(v, r) {
   return el('div', { class:'row' },
     el('div', { class:'top' }, el('strong', {}, r.name || '(no name)'), el('span', { class:'date' }, new Date(r.created_at).toLocaleString())),
     dl, files, el('div', { class:'ctl' }, status, notes, saved));
+}
+
+// ---------- Projects manager (admin only) ----------
+const CATS = {
+  'Boiler': ['Steel', 'Copper fin', 'Atmospheric', 'High efficiency'],
+  'Pumps': ['Booster', 'Sewer'],
+  'New construction': ['Underground', 'Rough', 'Finish'],
+  'Gas re-pipe': [],
+};
+const SIZES = ['Larger buildings', 'Single units', 'High-end homes'];
+const KINDS = [['photo', 'Photo'], ['before', 'Before'], ['after', 'After']];
+const BUCKET = 'project-photos';
+const pubUrl = (path) => `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
+
+// Shrinks a photo to max 1800px JPEG so uploads are fast and stay under the 5 MB limit
+function shrinkImage(file) {
+  return new Promise((ok, bad) => {
+    const im = new Image(), u = URL.createObjectURL(file);
+    im.onload = () => {
+      const r = Math.min(1, 1800 / Math.max(im.width, im.height)), c = document.createElement('canvas');
+      c.width = Math.round(im.width * r); c.height = Math.round(im.height * r);
+      c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
+      c.toBlob(b => { URL.revokeObjectURL(u); b ? ok(b) : bad(new Error('Could not convert ' + file.name)); }, 'image/jpeg', 0.82);
+    };
+    im.onerror = () => { URL.revokeObjectURL(u); bad(new Error('Could not read ' + file.name + ' (try a JPG or PNG)')); };
+    im.src = u;
+  });
+}
+
+const field = (label, ctl) => el('label', { class:'fld' }, el('span', {}, label), ctl);
+const opts = (arr, cur, first) => [
+  first ? el('option', { value:'' }, first) : null,
+  ...arr.map(v => { const o = el('option', { value:v }, v); if (v === cur) o.selected = true; return o; }),
+];
+const kindOpts = (cur) => KINDS.map(([v, l]) => { const o = el('option', { value:v }, l); if (v === cur) o.selected = true; return o; });
+
+async function renderProjects(list, openId) {
+  list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
+  const [p, ph] = await Promise.all([
+    sb.from('projects').select('*').order('created_at', { ascending:false }),
+    sb.from('project_photos').select('*').order('created_at', { ascending:true }),
+  ]);
+  const err = p.error || ph.error;
+  if (err) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load projects: ' + err.message));
+  const by = {};
+  ph.data.forEach(x => (by[x.project_id] = by[x.project_id] || []).push(x));
+  const refresh = (id) => renderProjects(list, id);
+  const add = el('button', { onclick: async () => {
+    const { data, error } = await sb.from('projects').insert({ title:'New project' }).select().single();
+    if (error) return alert('Could not create: ' + error.message);
+    refresh(data.id);
+  }}, '+ New project');
+  list.replaceChildren(
+    el('div', { style:'margin-bottom:12px' }, add),
+    ...(p.data.length
+      ? p.data.map(x => projectCard(x, by[x.id] || [], refresh, x.id === openId))
+      : [el('p', { class:'msg' }, 'No projects yet. Click “New project” to add one.')]));
+}
+
+function thumb(pic, refresh, pid) {
+  const k = el('select', { 'aria-label':'Photo label' }, kindOpts(pic.kind));
+  k.addEventListener('change', async () => {
+    const { error } = await sb.from('project_photos').update({ kind:k.value }).eq('id', pic.id);
+    if (error) alert('Could not change label: ' + error.message);
+  });
+  const del = el('button', { class:'ghost', onclick: async () => {
+    if (!confirm('Delete this photo?')) return;
+    await sb.storage.from(BUCKET).remove([pic.path]);
+    const { error } = await sb.from('project_photos').delete().eq('id', pic.id);
+    if (error) return alert('Could not delete: ' + error.message);
+    refresh(pid);
+  }}, 'Delete');
+  return el('div', { class:'thumb' }, el('img', { src:pubUrl(pic.path), alt:'', loading:'lazy' }), k, del);
+}
+
+function projectCard(p, pics, refresh, open) {
+  const title = el('input', { type:'text', placeholder:'Project title, e.g. Steel boiler replacement, Bronx' });
+  title.value = p.title || '';
+  const cat = el('select', {}, opts(Object.keys(CATS), p.category, 'Choose a category…'));
+  const sub = el('select');
+  const size = el('select', {}, opts(SIZES, p.size, '—'));
+  const subF = field('Type', sub), sizeF = field('Job size', size);
+  const fillSub = (cur) => {
+    const types = CATS[cat.value] || [];
+    sub.replaceChildren(...opts(types, cur, '—'));
+    subF.style.display = types.length ? '' : 'none';
+    sizeF.style.display = cat.value === 'New construction' ? '' : 'none';
+  };
+  fillSub(p.subtype);
+  cat.addEventListener('change', () => fillSub(''));
+
+  const desc = el('textarea', { rows:'4', placeholder:'Describe the job: what was done, building type, anything worth showing off.' });
+  desc.value = p.description || '';
+  const pub = el('input', { type:'checkbox' }); pub.checked = !!p.published;
+
+  const sumTitle = el('strong', {}, p.title || '(untitled)');
+  const sumMeta = el('span', { class:'date' });
+  const badge = el('span', { class:'badge' });
+  const showSummary = (t, c, s, live) => {
+    sumTitle.textContent = t || '(untitled)';
+    sumMeta.textContent = [c, s].filter(Boolean).join(' · ');
+    badge.textContent = live ? 'Live' : 'Draft';
+    badge.className = 'badge' + (live ? ' live' : '');
+  };
+  showSummary(p.title, p.category, p.subtype, p.published);
+
+  const msg = el('span', { class:'date' });
+  const save = el('button', { onclick: async () => {
+    msg.className = 'date'; msg.textContent = 'Saving…';
+    const row = {
+      title: title.value.trim() || 'Untitled',
+      category: cat.value || null,
+      subtype: sub.value || null,
+      size: cat.value === 'New construction' ? (size.value || null) : null,
+      description: desc.value.trim() || null,
+      published: pub.checked,
+    };
+    const { error } = await sb.from('projects').update(row).eq('id', p.id);
+    if (error) { msg.className = 'date err'; msg.textContent = 'Not saved: ' + error.message; return; }
+    msg.textContent = 'Saved';
+    showSummary(row.title, row.category, row.subtype, row.published);
+  }}, 'Save details');
+
+  const delP = el('button', { class:'ghost', onclick: async () => {
+    if (!confirm('Delete this whole project and all its photos? This cannot be undone.')) return;
+    if (pics.length) await sb.storage.from(BUCKET).remove(pics.map(x => x.path));
+    const { error } = await sb.from('projects').delete().eq('id', p.id);
+    if (error) return alert('Could not delete: ' + error.message);
+    refresh();
+  }}, 'Delete project');
+
+  const files = el('input', { type:'file', accept:'image/*', multiple:'' });
+  const kind = el('select', { 'aria-label':'Label for new photos' }, kindOpts('photo'));
+  const upMsg = el('span', { class:'date' });
+  const up = el('button', { onclick: async () => {
+    const fs = [...files.files];
+    if (!fs.length) { upMsg.className = 'date err'; upMsg.textContent = 'Choose photos first.'; return; }
+    up.disabled = true; upMsg.className = 'date';
+    try {
+      for (let i = 0; i < fs.length; i++) {
+        upMsg.textContent = `Uploading ${i + 1} of ${fs.length}…`;
+        const blob = await shrinkImage(fs[i]);
+        const path = `${p.id}/${Date.now()}-${i}.jpg`;
+        const u = await sb.storage.from(BUCKET).upload(path, blob, { contentType:'image/jpeg' });
+        if (u.error) throw u.error;
+        const r = await sb.from('project_photos').insert({ project_id:p.id, path, kind:kind.value });
+        if (r.error) throw r.error;
+      }
+      refresh(p.id);
+    } catch (e) {
+      upMsg.className = 'date err'; upMsg.textContent = 'Upload failed: ' + e.message; up.disabled = false;
+    }
+  }}, 'Upload photos');
+
+  const d = el('details', { class:'row' });
+  if (open) d.open = true;
+  d.append(
+    el('summary', {}, sumTitle, badge, sumMeta),
+    el('div', { class:'edit' },
+      field('Title', title),
+      el('div', { class:'grid2' }, field('Category', cat), subF, sizeF),
+      field('Description', desc),
+      el('label', { class:'chk' }, pub, 'Show on the public Projects page'),
+      el('div', { class:'bar' }, save, msg, el('span', { style:'flex:1' }), delP),
+      el('hr', { style:'border:0;border-top:1px solid var(--line);width:100%' }),
+      el('strong', {}, 'Photos'),
+      pics.length ? el('div', { class:'thumbs' }, pics.map(x => thumb(x, refresh, p.id))) : el('p', { class:'msg', style:'padding:0' }, 'No photos yet.'),
+      el('div', { class:'bar' }, files, kind, up, upMsg)));
+  return d;
 }
 
 sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_IN') boot(); });
