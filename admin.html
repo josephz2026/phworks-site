@@ -32,6 +32,10 @@
   #login{min-height:100vh;display:grid;place-items:center;padding:1.25rem}
   .login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem}
   .login-box h1{font-size:1.3rem;margin:0 0 1.25rem}
+  .pw{position:relative}
+  .pw input{padding-right:3.2rem}
+  .pw .eye{position:absolute;right:.3rem;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;background:none;cursor:pointer;color:var(--muted);display:grid;place-items:center;border-radius:8px}
+  .pw .eye:hover{color:var(--ink)}
   .err{color:var(--danger);min-height:1.3em;margin:.5rem 0 0;font-size:.9rem}
 
   header.bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 1.25rem;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
@@ -78,7 +82,12 @@
   <form class="login-box" id="loginForm">
     <h1>PH Works admin</h1>
     <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" required></div>
-    <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
+    <div class="field"><label for="password">Password</label>
+      <div class="pw">
+        <input id="password" type="password" autocomplete="current-password" required>
+        <button type="button" class="eye" id="eye" aria-label="Show password" aria-pressed="false"></button>
+      </div>
+    </div>
     <button class="btn primary" style="width:100%" type="submit">Log in</button>
     <p class="err" id="loginErr" role="alert"></p>
     <p class="meta" id="cfgInfo" style="font-size:.8rem;margin-top:.75rem"></p>
@@ -172,7 +181,31 @@ $('loginForm').addEventListener('submit', async e => {
     email: $('email').value.trim(),
     password: $('password').value
   });
-  if (error) $('loginErr').textContent = error.message + (error.status ? ' (code ' + error.status + ')' : '');
+  if (error) {
+    const f = friendly(error);
+    $('loginErr').textContent = f === error.message ? f : f + ' [' + error.message + ']';
+  }
+});
+
+function friendly(err){
+  const m = String(err.message || '').toLowerCase();
+  if (m.includes('invalid login')) return "That email and password don't match. Tap the eye to check what you typed.";
+  if (m.includes('not confirmed')) return "This account isn't confirmed yet. In Supabase, open Authentication, then Users, and confirm it.";
+  if (m.includes('api key') || m.includes('apikey')) return 'The key in supabase-config.js is wrong or cut off.';
+  if (m.includes('failed to fetch') || m.includes('network')) return "Can't reach Supabase. Check the URL in supabase-config.js and your internet.";
+  return err.message;
+}
+
+// Eye button: show or hide the password so you can check for typos
+const EYE_ON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+const EYE_OFF = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.9 10.9 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
+$('eye').innerHTML = EYE_ON;
+$('eye').addEventListener('click', () => {
+  const show = $('password').type === 'password';
+  $('password').type = show ? 'text' : 'password';
+  $('eye').innerHTML = show ? EYE_OFF : EYE_ON;
+  $('eye').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+  $('eye').setAttribute('aria-pressed', String(show));
 });
 
 // Shows which project and key this page is using, to catch paste mistakes
