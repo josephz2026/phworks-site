@@ -254,7 +254,7 @@ function render(){
     var cov=el('span','cov');cov.style.display='block';
     if(photos[0]){var im=document.createElement('img');im.src=photos[0].url;im.alt=p.title;im.loading='lazy';im.decoding='async';cov.appendChild(im)}
     var cap=el('span','cap');
-    var meta=[p.category,p.subtype].filter(Boolean).join(' \u00b7 ');
+    var meta=[p.category,p.subtype,p.size].filter(Boolean).join(' \u00b7 ');
     var n=photos.length+(photos.length===1?' photo':' photos');
     cap.appendChild(el('span','nm',p.title));
     cap.appendChild(el('span','ct',(meta?meta+' \u00b7 ':'')+n));
@@ -270,7 +270,7 @@ function show(){
   var photos=cur.photos||[],ph=photos[idx];
   box.innerHTML='';
   box.appendChild(el('h2','',cur.title));
-  var meta=[cur.category,cur.subtype].filter(Boolean).join(' \u00b7 ');
+  var meta=[cur.category,cur.subtype,cur.size].filter(Boolean).join(' \u00b7 ');
   if(meta)box.appendChild(el('p','meta',meta));
   if(cur.description)box.appendChild(el('p','desc',cur.description));
   if(!ph)return;
@@ -302,9 +302,14 @@ document.getElementById('lx').addEventListener('click',close);
 lb.addEventListener('click',function(e){if(e.target===lb)close()});
 document.addEventListener('keydown',function(e){if(!lb.classList.contains('on'))return;if(e.key==='Escape')close();if(e.key==='ArrowRight'&&cur&&cur.photos.length>1)go(1);if(e.key==='ArrowLeft'&&cur&&cur.photos.length>1)go(-1)});
 if(typeof PHW_SUPABASE_URL==='undefined'||PHW_SUPABASE_URL.indexOf('YOUR-')>-1){msg.textContent='Coming soon.';return}
-fetch(PHW_SUPABASE_URL+'/rest/v1/projects?published=eq.true&order=created_at.desc&select=*',{headers:{apikey:PHW_SUPABASE_KEY,Authorization:'Bearer '+PHW_SUPABASE_KEY}})
+fetch(PHW_SUPABASE_URL+'/rest/v1/projects?published=eq.true&order=created_at.desc&select=*,project_photos(*)',{headers:{apikey:PHW_SUPABASE_KEY,Authorization:'Bearer '+PHW_SUPABASE_KEY}})
   .then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
-  .then(function(rows){all=rows;filters();render()})
+  .then(function(rows){
+    all=rows.map(function(p){
+      var pics=(p.project_photos||[]).slice().sort(function(a,b){return a.created_at<b.created_at?-1:1});
+      p.photos=pics.map(function(x){return{url:PHW_SUPABASE_URL+'/storage/v1/object/public/project-photos/'+x.path,label:x.kind==='before'?'Before':x.kind==='after'?'After':'',caption:''}});
+      return p});
+    filters();render()})
   .catch(function(){msg.innerHTML='Projects are not loading right now. Please call us at <a href="tel:+17184141083">(718) 414-1083</a>.'});
 })();
 </script>
