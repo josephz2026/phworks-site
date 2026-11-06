@@ -3,412 +3,169 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>PH Works Admin</title>
+<meta name="robots" content="noindex, nofollow">
+<title>PH Works Staff</title>
 <style>
-  :root{
-    --bg:#f4f5f6; --card:#fff; --ink:#15191e; --muted:#5d6670; --line:#dde1e5;
-    --accent:#0f4c81; --accent-ink:#fff; --danger:#b3261e; --ok:#1d7a46;
+  :root { --bg:#f5f6f7; --card:#fff; --ink:#1c2227; --muted:#667078; --line:#dde1e4; --accent:#0b5fa5; --new:#c2410c; --prog:#a16207; --done:#15803d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14181b; --card:#1d2327; --ink:#e8ecef; --muted:#98a3ab; --line:#2f383e; --accent:#5aa9e6; --new:#fb923c; --prog:#facc15; --done:#4ade80; }
   }
-  @media (prefers-color-scheme: dark){
-    :root{ --bg:#101315; --card:#181c20; --ink:#eceff2; --muted:#9aa4ae; --line:#2b3138; --accent:#5aa3e0; --accent-ink:#0b1117; --danger:#ff8a80; --ok:#5fd08e; }
-  }
-  *{box-sizing:border-box}
-  html,body{margin:0}
-  body{font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
-  [hidden]{display:none!important}
-  button,input,select,textarea{font:inherit;color:inherit}
-  input,select,textarea{width:100%;padding:.65rem .75rem;border:1px solid var(--line);border-radius:8px;background:var(--card)}
-  textarea{min-height:90px;resize:vertical}
-  label{display:block;font-size:.9rem;font-weight:600;margin:0 0 .3rem}
-  .field{margin-bottom:1rem}
-  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-  .btn{border:1px solid var(--line);background:var(--card);padding:.6rem 1rem;border-radius:8px;cursor:pointer;font-weight:600}
-  .btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
-  .btn.danger{color:var(--danger)}
-  .btn.small{padding:.35rem .6rem;font-size:.85rem}
-  .btn:disabled{opacity:.6;cursor:wait}
-
-  #login{min-height:100vh;display:grid;place-items:center;padding:1.25rem}
-  .login-box{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:1.5rem}
-  .login-box h1{font-size:1.3rem;margin:0 0 1.25rem}
-  .pw{position:relative}
-  .pw input{padding-right:3.2rem}
-  .pw .eye{position:absolute;right:.3rem;top:50%;transform:translateY(-50%);width:42px;height:42px;border:0;background:none;cursor:pointer;color:var(--muted);display:grid;place-items:center;border-radius:8px}
-  .pw .eye:hover{color:var(--ink)}
-  .err{color:var(--danger);min-height:1.3em;margin:.5rem 0 0;font-size:.9rem}
-
-  header.bar{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:.9rem 1.25rem;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
-  header.bar h1{font-size:1.1rem;margin:0}
-  .wrap{max-width:860px;margin:0 auto;padding:1.25rem}
-  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;gap:1rem}
-  .top h2{margin:0;font-size:1.2rem}
-
-  .proj{display:grid;grid-template-columns:96px 1fr;gap:.9rem;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:.75rem;margin-bottom:.75rem}
-  .proj .thumb{width:96px;height:96px;border-radius:8px;object-fit:cover;background:var(--line)}
-  .proj h3{margin:0 0 .15rem;font-size:1.05rem}
-  .meta{color:var(--muted);font-size:.88rem}
-  .badge{display:inline-block;font-size:.78rem;font-weight:700;padding:.1rem .5rem;border-radius:99px;border:1px solid var(--line);margin-left:.4rem}
-  .badge.live{color:var(--ok);border-color:var(--ok)}
-  .actions{display:flex;flex-wrap:wrap;gap:.4rem;margin-top:.6rem}
-  .empty{padding:2rem;text-align:center;color:var(--muted);border:1px dashed var(--line);border-radius:10px}
-
-  dialog{width:min(680px,100%);max-height:100dvh;border:0;border-radius:12px;padding:0;background:var(--bg);color:var(--ink)}
-  dialog::backdrop{background:rgba(0,0,0,.55)}
-  @media(max-width:700px){dialog{width:100%;height:100dvh;max-height:100dvh;border-radius:0}}
-  .ed-head{display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.25rem;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:2}
-  .ed-head h2{margin:0;font-size:1.1rem}
-  .ed-body{padding:1.25rem}
-  .ed-foot{display:flex;gap:.6rem;justify-content:flex-end;padding:.9rem 1.25rem;background:var(--card);border-top:1px solid var(--line);position:sticky;bottom:0}
-  .check{display:flex;gap:.6rem;align-items:center;font-weight:600}
-  .check input{width:auto}
-
-  .photos{margin-top:.75rem;display:grid;gap:.6rem}
-  .ph{display:grid;grid-template-columns:110px 1fr;gap:.7rem;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:.5rem}
-  .ph img{width:110px;height:110px;object-fit:cover;border-radius:6px;display:block}
-  .ph textarea{min-height:60px;font-size:.92rem}
-  .ph select{margin-bottom:.4rem;padding:.45rem .6rem;font-size:.92rem}
-  .ph .btns{display:flex;gap:.3rem;flex-wrap:wrap;margin-top:.4rem;align-items:center}
-  .cover-tag{font-size:.75rem;font-weight:700;color:var(--ok)}
-  .drop{display:block;text-align:center;padding:1.1rem;border:2px dashed var(--line);border-radius:10px;cursor:pointer;color:var(--muted);font-weight:600}
-  .drop input{display:none}
-
-  #toast{position:fixed;left:50%;bottom:1.25rem;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:.65rem 1rem;border-radius:8px;z-index:50;max-width:90vw}
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:860px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:1.3rem; margin:0; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+  .who { color:var(--muted); font-size:.9rem; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 14px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); }
+  input[type=email] { width:100%; padding:10px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
+  .login { max-width:380px; margin:12vh auto 0; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px; }
+  .login p { color:var(--muted); margin:.4rem 0 1rem; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .tabs button { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  .tabs button[aria-selected=true] { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .row { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:10px; }
+  .top { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .top strong { font-size:1.05rem; }
+  .date { color:var(--muted); font-size:.85rem; }
+  dl { margin:0; display:grid; grid-template-columns:110px 1fr; gap:3px 10px; }
+  dt { color:var(--muted); font-size:.9rem; }
+  dd { margin:0; word-break:break-word; white-space:pre-wrap; }
+  .files { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+  .files button { padding:5px 10px; font-size:.85rem; }
+  .ctl { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:flex-start; }
+  select, textarea { border:1px solid var(--line); border-radius:6px; padding:7px; background:var(--card); }
+  textarea { flex:1; min-width:200px; min-height:38px; resize:vertical; }
+  .s-new { color:var(--new); } .s-in-progress { color:var(--prog); } .s-done { color:var(--done); }
+  .msg { color:var(--muted); padding:20px 0; }
+  .err { color:#b91c1c; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
 </style>
 </head>
 <body>
-
-<section id="login" hidden>
-  <form class="login-box" id="loginForm">
-    <h1>PH Works admin</h1>
-    <div class="field"><label for="email">Email</label><input id="email" type="email" autocomplete="username" required></div>
-    <div class="field"><label for="password">Password</label>
-      <div class="pw">
-        <input id="password" type="password" autocomplete="current-password" required>
-        <button type="button" class="eye" id="eye" aria-label="Show password" aria-pressed="false"></button>
-      </div>
-    </div>
-    <button class="btn primary" style="width:100%" type="submit">Log in</button>
-    <p class="err" id="loginErr" role="alert"></p>
-  </form>
-</section>
-
-<div id="app" hidden>
-  <header class="bar">
-    <h1>PH Works projects</h1>
-    <button class="btn small" id="logout" type="button">Log out</button>
-  </header>
-  <div class="wrap">
-    <div class="top">
-      <h2>All projects</h2>
-      <button class="btn primary" id="newBtn" type="button">Add project</button>
-    </div>
-    <div id="list"></div>
-  </div>
-</div>
-
-<dialog id="editor">
-  <form id="editForm">
-    <div class="ed-head">
-      <h2 id="edTitle">Add project</h2>
-      <button class="btn small" type="button" id="closeBtn">Close</button>
-    </div>
-    <div class="ed-body">
-      <div class="field"><label for="f_title">Project name</label><input id="f_title" required placeholder="e.g. Boiler replacement, Flatbush"></div>
-      <div class="field"><label for="f_cat">Category</label>
-        <input id="f_cat" list="cats" required placeholder="e.g. Boiler, Pumps, New construction" autocomplete="off">
-        <datalist id="cats"></datalist>
-        <div class="meta">Tip: clear the box to see all choices. You can also type a new category.</div>
-      </div>
-      <div class="field"><label for="f_sub">Sub-type (optional)</label>
-        <input id="f_sub" list="subs" placeholder="e.g. High efficiency, Single units" autocomplete="off">
-        <datalist id="subs"></datalist>
-      </div>
-      <div class="field"><label for="f_desc">Description</label><textarea id="f_desc" placeholder="What was the job? Keep it short and plain."></textarea></div>
-      <div class="field check"><input type="checkbox" id="f_pub" checked><label for="f_pub" style="margin:0">Show on the website</label></div>
-
-      <label>Photos (as many as you want)</label>
-      <label class="drop">Tap to add photos
-        <input type="file" id="files" accept="image/*" multiple>
-      </label>
-      <div class="photos" id="photos"></div>
-      <p class="meta">Pick a label (Before, After, Underground, Rough, Finish) and write a note under any photo if you want. The first photo is the cover on the Projects page.</p>
-    </div>
-    <div class="ed-foot">
-      <button class="btn" type="button" id="cancelBtn">Cancel</button>
-      <button class="btn primary" type="submit" id="saveBtn">Save project</button>
-    </div>
-  </form>
-</dialog>
-
-<div id="toast" hidden></div>
+<main id="app"></main>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
-<script src="supabase-config.js"></script>
 <script>
-const sb = supabase.createClient(PHW_SUPABASE_URL, PHW_SUPABASE_KEY);
-const BUCKET = 'project-photos';
-// Starter suggestions. Anything you type yourself gets remembered automatically.
-const PRESET_SUBS = {
-  'Boiler': ['Steel', 'Copper fin', 'Atmospheric', 'High efficiency'],
-  'Pumps': ['Booster', 'Sewer'],
-  'New construction': ['Bigger buildings', 'Single units', 'High-end homes'],
-  'Gas re-pipes': []
-};
-const PHOTO_LABELS = ['Before', 'After', 'Underground', 'Rough', 'Finish'];
-const $ = id => document.getElementById(id);
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-let items = [];
-let ed = null;
+// ---- Fill these two in (Supabase > Project Settings > API). The anon key is safe to be public. ----
+const SUPABASE_URL = 'PASTE_PROJECT_URL';
+const SUPABASE_ANON_KEY = 'PASTE_ANON_PUBLIC_KEY';
 
-function toast(msg){
-  const t = $('toast'); t.textContent = msg; t.hidden = false;
-  clearTimeout(toast.t); toast.t = setTimeout(() => t.hidden = true, 4000);
-}
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById('app');
 
-/* ---------- auth ---------- */
-sb.auth.onAuthStateChange((_event, session) => {
-  $('login').hidden = !!session;
-  $('app').hidden = !session;
-  if (session) setTimeout(load, 0);
-});
+// Each tab: which roles can open it, which table it reads, which fields to show
+const VIEWS = [
+  { key:'hr', label:'Job applications', table:'job_applications', roles:['admin','hr'],
+    fields:[['email','Email'],['phone','Phone'],['position','Position'],['message','Message']], files:'resume_path' },
+  { key:'service', label:'Service requests', table:'service_requests', roles:['admin','service'],
+    fields:[['email','Email'],['phone','Phone'],['address','Address'],['service_type','Service'],['message','Details']], files:'photo_paths' },
+  { key:'estimating', label:'Estimate requests', table:'estimate_requests', roles:['admin','estimating'],
+    fields:[['email','Email'],['phone','Phone'],['company','Company'],['project_type','Project'],['address','Address'],['plans_link','Plans link'],['message','Details']] },
+];
+const STATUSES = ['new','in progress','done'];
 
-$('loginForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  $('loginErr').textContent = '';
-  const { error } = await sb.auth.signInWithPassword({
-    email: $('email').value.trim(),
-    password: $('password').value
-  });
-  if (error) {
-    const f = friendly(error);
-    $('loginErr').textContent = f === error.message ? f : f + ' [' + error.message + ']';
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
   }
-});
-
-function friendly(err){
-  const m = String(err.message || '').toLowerCase();
-  if (m.includes('invalid login')) return "That email and password don't match. Tap the eye to check what you typed.";
-  if (m.includes('not confirmed')) return "This account isn't confirmed yet. In Supabase, open Authentication, then Users, and confirm it.";
-  if (m.includes('api key') || m.includes('apikey')) return 'The key in supabase-config.js is wrong or cut off.';
-  if (m.includes('failed to fetch') || m.includes('network')) return "Can't reach Supabase. Check the URL in supabase-config.js and your internet.";
-  return err.message;
+  for (const kid of kids.flat()) if (kid != null) n.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return n; // text is always inserted as text, never as HTML
 }
 
-// Eye button: show or hide the password so you can check for typos
-const EYE_ON = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/></svg>';
-const EYE_OFF = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.9 10.9 0 0 1 12 19C5 19 1 12 1 12a18.5 18.5 0 0 1 5.06-5.94M9.9 4.24A9.1 9.1 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19M14.12 14.12a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>';
-$('eye').innerHTML = EYE_ON;
-$('eye').addEventListener('click', () => {
-  const show = $('password').type === 'password';
-  $('password').type = show ? 'text' : 'password';
-  $('eye').innerHTML = show ? EYE_OFF : EYE_ON;
-  $('eye').setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-  $('eye').setAttribute('aria-pressed', String(show));
-});
-$('logout').addEventListener('click', () => sb.auth.signOut());
+function showLogin(note) {
+  const email = el('input', { type:'email', placeholder:'you@phworksinc.com', required:'', autocomplete:'email' });
+  const out = el('p', { class:'msg' }, note || '');
+  const form = el('form', { class:'login', onsubmit: async (e) => {
+    e.preventDefault();
+    out.className = 'msg'; out.textContent = 'Sending…';
+    const { error } = await sb.auth.signInWithOtp({
+      email: email.value.trim(),
+      options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname }
+    });
+    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link. Check the email address, or ask Joseph to add you.'; }
+    else out.textContent = 'Check your email for the sign-in link.';
+  }},
+    el('h1', {}, 'PH Works staff'),
+    el('p', {}, 'Enter your work email and we’ll send you a sign-in link.'),
+    email, el('div', { style:'height:12px' }), el('button', { type:'submit' }, 'Email me a link'), out);
+  app.replaceChildren(form);
+}
 
-/* ---------- list ---------- */
-async function load(){
-  const { data, error } = await sb.from('projects').select('*').order('created_at', { ascending: false });
-  if (error) return toast('Could not load projects: ' + error.message);
-  items = data;
-  fillCats();
-  renderList();
-}
-function fillCats(){
-  const cats = [...new Set([...Object.keys(PRESET_SUBS), ...items.map(p => p.category).filter(Boolean)])];
-  $('cats').innerHTML = cats.map(t => `<option value="${esc(t)}">`).join('');
-  fillSubs();
-}
-function fillSubs(){
-  const c = $('f_cat').value.trim();
-  const subs = [...new Set([...(PRESET_SUBS[c] || []), ...items.filter(p => p.category === c).map(p => p.subtype).filter(Boolean)])];
-  $('subs').innerHTML = subs.map(t => `<option value="${esc(t)}">`).join('');
-}
-$('f_cat').addEventListener('input', fillSubs);
-
-function renderList(){
-  const box = $('list');
-  if (!items.length){
-    box.innerHTML = '<div class="empty">No projects yet. Tap "Add project" to create the first one.</div>';
-    return;
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return showLogin();
+  const { data: staff } = await sb.from('staff').select('role').maybeSingle();
+  if (!staff) {
+    await sb.auth.signOut();
+    return showLogin('That email isn’t approved for staff access yet.');
   }
-  box.innerHTML = items.map(p => {
-    const cover = (p.photos && p.photos[0]) ? p.photos[0].url : '';
-    return `<div class="proj" data-id="${p.id}">
-      ${cover ? `<img class="thumb" src="${esc(cover)}" alt="" loading="lazy">` : '<div class="thumb"></div>'}
-      <div>
-        <h3>${esc(p.title)}${p.published ? '<span class="badge live">Live</span>' : '<span class="badge">Hidden</span>'}</h3>
-        <div class="meta">${[p.category, p.subtype].filter(Boolean).map(esc).join(' &middot; ')} &middot; ${(p.photos || []).length} photos</div>
-        <div class="actions">
-          <button class="btn small" data-act="edit" type="button">Edit</button>
-          <button class="btn small" data-act="toggle" type="button">${p.published ? 'Hide' : 'Publish'}</button>
-          <button class="btn small danger" data-act="delete" type="button">Delete</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
+  showDash(session.user.email, staff.role);
 }
 
-$('list').addEventListener('click', async e => {
-  const btn = e.target.closest('button[data-act]');
-  if (!btn) return;
-  const id = btn.closest('.proj').dataset.id;
-  const p = items.find(x => x.id === id);
-  if (btn.dataset.act === 'edit') openEditor(p);
-  if (btn.dataset.act === 'toggle'){
-    const { error } = await sb.from('projects').update({ published: !p.published }).eq('id', id);
-    if (error) return toast(error.message);
-    load();
+function showDash(email, role) {
+  const views = VIEWS.filter(v => v.roles.includes(role));
+  const list = el('div');
+  const tabs = el('div', { class:'tabs', role:'tablist' });
+  const select = (v) => {
+    [...tabs.children].forEach(b => b.setAttribute('aria-selected', b.dataset.key === v.key));
+    loadView(v, list);
+  };
+  views.forEach(v => tabs.append(el('button', { role:'tab', 'data-key':v.key, 'aria-selected':'false', onclick:() => select(v) }, v.label)));
+
+  app.replaceChildren(
+    el('header', {},
+      el('div', {}, el('h1', {}, 'PH Works staff'), el('div', { class:'who' }, `${email} · ${role}`)),
+      el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); showLogin(); } }, 'Sign out')),
+    tabs, list);
+  select(views[0]);
+}
+
+async function loadView(v, list) {
+  list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
+  const { data, error } = await sb.from(v.table).select('*').order('created_at', { ascending:false }).limit(200);
+  if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
+  if (!data.length) return list.replaceChildren(el('p', { class:'msg' }, 'Nothing here yet.'));
+  list.replaceChildren(...data.map(r => card(v, r)));
+}
+
+function card(v, r) {
+  const dl = el('dl');
+  for (const [k, label] of v.fields) {
+    if (r[k]) dl.append(el('dt', {}, label), el('dd', {}, String(r[k])));
   }
-  if (btn.dataset.act === 'delete'){
-    if (!confirm(`Delete "${p.title}" and all its photos? This cannot be undone.`)) return;
-    const paths = (p.photos || []).map(x => pathFromUrl(x.url)).filter(Boolean);
-    if (paths.length) await sb.storage.from(BUCKET).remove(paths);
-    const { error } = await sb.from('projects').delete().eq('id', id);
-    if (error) return toast(error.message);
-    toast('Deleted');
-    load();
-  }
-});
+  const paths = v.files ? [].concat(r[v.files] || []).filter(Boolean) : [];
+  const files = paths.length ? el('div', { class:'files' }, paths.map((p, i) =>
+    el('button', { class:'ghost', onclick: async () => {
+      const { data, error } = await sb.storage.from('uploads').createSignedUrl(p, 300);
+      if (error) return alert('Could not open file: ' + error.message);
+      window.open(data.signedUrl, '_blank', 'noopener');
+    }}, v.files === 'resume_path' ? 'Open resume' : `Photo ${i + 1}`))) : null;
 
-/* ---------- editor ---------- */
-$('newBtn').addEventListener('click', () => openEditor(null));
-$('closeBtn').addEventListener('click', closeEditor);
-$('cancelBtn').addEventListener('click', closeEditor);
+  const status = el('select', { 'aria-label':'Status' }, STATUSES.map(s => {
+    const o = el('option', { value:s }, s); if (s === r.status) o.selected = true; return o;
+  }));
+  const notes = el('textarea', { placeholder:'Notes' }); notes.value = r.notes || '';
+  const saved = el('span', { class:'date' });
+  const save = async () => {
+    saved.textContent = 'Saving…';
+    const { error } = await sb.from(v.table).update({ status:status.value, notes:notes.value }).eq('id', r.id);
+    saved.textContent = error ? 'Not saved: ' + error.message : 'Saved';
+  };
+  status.addEventListener('change', save);
+  notes.addEventListener('blur', () => { if (notes.value !== (r.notes || '')) { r.notes = notes.value; save(); } });
 
-function openEditor(p){
-  ed = { id: p ? p.id : null, photos: p ? (p.photos || []).map(x => ({ ...x })) : [], removed: [] };
-  $('edTitle').textContent = p ? 'Edit project' : 'Add project';
-  $('f_title').value = p?.title || '';
-  $('f_cat').value = p?.category || '';
-  fillSubs();
-  $('f_sub').value = p?.subtype || '';
-  $('f_desc').value = p?.description || '';
-  $('f_pub').checked = p ? p.published : true;
-  renderPhotos();
-  $('editor').showModal();
-}
-function closeEditor(){
-  ed?.photos.forEach(x => x.preview && URL.revokeObjectURL(x.preview));
-  $('editor').close();
-  ed = null;
+  return el('div', { class:'row' },
+    el('div', { class:'top' }, el('strong', {}, r.name || '(no name)'), el('span', { class:'date' }, new Date(r.created_at).toLocaleString())),
+    dl, files, el('div', { class:'ctl' }, status, notes, saved));
 }
 
-$('files').addEventListener('change', e => {
-  for (const f of e.target.files) ed.photos.push({ file: f, preview: URL.createObjectURL(f), label: '', caption: '' });
-  e.target.value = '';
-  renderPhotos();
-});
-
-function renderPhotos(){
-  $('photos').innerHTML = ed.photos.map((p, i) => {
-    const opts = ['', ...PHOTO_LABELS];
-    if (p.label && !opts.includes(p.label)) opts.push(p.label);
-    return `
-    <div class="ph" data-i="${i}">
-      <img src="${esc(p.preview || p.url)}" alt="">
-      <div>
-        <select data-label aria-label="Photo label">
-          ${opts.map(o => `<option value="${esc(o)}" ${o === (p.label || '') ? 'selected' : ''}>${o ? esc(o) : 'No label'}</option>`).join('')}
-        </select>
-        <textarea data-cap placeholder="Note under this photo (optional)" aria-label="Photo note">${esc(p.caption)}</textarea>
-        <div class="btns">
-          ${i === 0 ? '<span class="cover-tag">Cover</span>' : ''}
-          ${i > 0 ? '<button class="btn small" type="button" data-p="up">Move up</button>' : ''}
-          ${i < ed.photos.length - 1 ? '<button class="btn small" type="button" data-p="down">Move down</button>' : ''}
-          <button class="btn small danger" type="button" data-p="remove">Remove</button>
-        </div>
-      </div>
-    </div>`;
-  }).join('');
-}
-
-$('photos').addEventListener('click', e => {
-  const b = e.target.closest('button[data-p]');
-  if (!b) return;
-  const i = +b.closest('.ph').dataset.i;
-  if (b.dataset.p === 'up') [ed.photos[i-1], ed.photos[i]] = [ed.photos[i], ed.photos[i-1]];
-  if (b.dataset.p === 'down') [ed.photos[i+1], ed.photos[i]] = [ed.photos[i], ed.photos[i+1]];
-  if (b.dataset.p === 'remove'){
-    const [gone] = ed.photos.splice(i, 1);
-    if (gone.url) ed.removed.push(gone.url);
-    if (gone.preview) URL.revokeObjectURL(gone.preview);
-  }
-  renderPhotos();
-});
-$('photos').addEventListener('change', e => {
-  if (!e.target.matches('select[data-label]')) return;
-  ed.photos[+e.target.closest('.ph').dataset.i].label = e.target.value;
-});
-$('photos').addEventListener('input', e => {
-  if (!e.target.matches('textarea[data-cap]')) return;
-  ed.photos[+e.target.closest('.ph').dataset.i].caption = e.target.value;
-});
-
-async function shrink(file){
-  const bmp = await createImageBitmap(file, { imageOrientation: 'from-image' });
-  const scale = Math.min(1, 1800 / Math.max(bmp.width, bmp.height));
-  const c = document.createElement('canvas');
-  c.width = Math.round(bmp.width * scale);
-  c.height = Math.round(bmp.height * scale);
-  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height);
-  return new Promise(res => c.toBlob(res, 'image/jpeg', 0.82));
-}
-function pathFromUrl(url){
-  const k = `/${BUCKET}/`;
-  const i = url.indexOf(k);
-  return i === -1 ? null : decodeURIComponent(url.slice(i + k.length).split('?')[0]);
-}
-
-$('editForm').addEventListener('submit', async e => {
-  e.preventDefault();
-  const btn = $('saveBtn');
-  btn.disabled = true;
-  try {
-    const folder = ed.id || crypto.randomUUID();
-    const photos = [];
-    const newCount = ed.photos.filter(p => p.file).length;
-    let done = 0;
-    for (const p of ed.photos){
-      if (p.file){
-        btn.textContent = `Uploading ${++done} of ${newCount}...`;
-        const blob = await shrink(p.file);
-        const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
-        const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: 'image/jpeg', cacheControl: '31536000' });
-        if (error) throw error;
-        photos.push({ url: sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl, label: p.label || '', caption: p.caption.trim() });
-      } else {
-        photos.push({ url: p.url, label: p.label || '', caption: (p.caption || '').trim() });
-      }
-    }
-    btn.textContent = 'Saving...';
-    const row = {
-      title: $('f_title').value.trim(),
-      category: $('f_cat').value.trim(),
-      subtype: $('f_sub').value.trim(),
-      description: $('f_desc').value.trim(),
-      published: $('f_pub').checked,
-      photos
-    };
-    const q = ed.id
-      ? sb.from('projects').update(row).eq('id', ed.id)
-      : sb.from('projects').insert({ ...row, id: folder });
-    const { error } = await q;
-    if (error) throw error;
-    const gone = ed.removed.map(pathFromUrl).filter(Boolean);
-    if (gone.length) await sb.storage.from(BUCKET).remove(gone);
-    closeEditor();
-    toast('Saved');
-    load();
-  } catch (err) {
-    toast('Could not save: ' + (err.message || err));
-  } finally {
-    btn.disabled = false;
-    btn.textContent = 'Save project';
-  }
-});
+sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_IN') boot(); });
+boot();
 </script>
 </body>
 </html>
