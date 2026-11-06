@@ -49,6 +49,7 @@
   .edit { margin-top:12px; display:grid; gap:12px; }
   .fld { display:grid; gap:4px; } .fld > span { color:var(--muted); font-size:.9rem; }
   .fld select, .fld textarea { width:100%; }
+  .fld input[type=text] { margin-top:2px; }
   .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
   .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
   .thumb { display:grid; gap:6px; }
@@ -194,6 +195,7 @@ const CATS = {
 const SIZES = ['Larger buildings', 'Single units', 'High-end homes'];
 const KINDS = [['photo', 'Photo'], ['before', 'Before'], ['after', 'After']];
 const BUCKET = 'project-photos';
+const OTHER = '__other__';
 const pubUrl = (path) => `${SUPABASE_URL}/storage/v1/object/public/${BUCKET}/${path}`;
 
 // Shrinks a photo to max 1800px JPEG so uploads are fast and stay under the 5 MB limit
@@ -204,21 +206,42 @@ function shrinkImage(file) {
       const r = Math.min(1, 1800 / Math.max(im.width, im.height)), c = document.createElement('canvas');
       c.width = Math.round(im.width * r); c.height = Math.round(im.height * r);
       c.getContext('2d').drawImage(im, 0, 0, c.width, c.height);
-      c.toBlob(b => { URL.revokeObjectURL(u); b ? ok(b) : bad(new Error('Could not convert ' + file.name)); }, 'image/jpeg', 0.82);
+      c.toBlob(b => { URL.revokeObjectURL(u); b ? ok(b) : bad(new Error('could not convert')); }, 'image/jpeg', 0.82);
     };
-    im.onerror = () => { URL.revokeObjectURL(u); bad(new Error('Could not read ' + file.name + ' (try a JPG or PNG)')); };
+    im.onerror = () => { URL.revokeObjectURL(u); bad(new Error('could not read it (try a JPG or PNG)')); };
     im.src = u;
   });
 }
 
 const field = (label, ctl) => el('label', { class:'fld' }, el('span', {}, label), ctl);
-const opts = (arr, cur, first) => [
-  first ? el('option', { value:'' }, first) : null,
-  ...arr.map(v => { const o = el('option', { value:v }, v); if (v === cur) o.selected = true; return o; }),
-];
 const kindOpts = (cur) => KINDS.map(([v, l]) => { const o = el('option', { value:v }, l); if (v === cur) o.selected = true; return o; });
 
-async function renderProjects(list, openId) {
+// A dropdown with N/A first and "Other (type your own)" last. get() returns the chosen text, or null for N/A.
+function choice(label) {
+  const sel = el('select', { 'aria-label':label });
+  const txt = el('input', { type:'text', placeholder:'Type your own…', 'aria-label':label + ' (your own)' });
+  txt.style.display = 'none';
+  const sync = () => { txt.style.display = sel.value === OTHER ? '' : 'none'; };
+  sel.addEventListener('change', sync);
+  return {
+    node: el('div', { class:'fld' }, el('span', {}, label), sel, txt),
+    set(list, cur) {
+      sel.replaceChildren(
+        el('option', { value:'' }, 'N/A'),
+        ...list.map(v => el('option', { value:v }, v)),
+        el('option', { value:OTHER }, 'Other (type your own)'));
+      txt.value = '';
+      if (cur && list.includes(cur)) sel.value = cur;
+      else if (cur) { sel.value = OTHER; txt.value = cur; }
+      else sel.value = '';
+      sync();
+    },
+    get() { return sel.value === OTHER ? (txt.value.trim() || null) : (sel.value || null); },
+    onchange(fn) { sel.addEventListener('change', fn); },
+  };
+}
+
+async function renderProjects(list) {
   list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
   const [p, ph] = await Promise.all([
     sb.from('projects').select('*').order('created_at', { ascending:false }),
@@ -228,20 +251,25 @@ async function renderProjects(list, openId) {
   if (err) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load projects: ' + err.message));
   const by = {};
   ph.data.forEach(x => (by[x.project_id] = by[x.project_id] || []).push(x));
-  const refresh = (id) => renderProjects(list, id);
+
+  const box = el('div');
+  const empty = el('p', { class:'msg' }, 'No projects yet. Click “New project” to add one.');
+  const sync = () => { empty.style.display = box.children.length ? 'none' : ''; };
+  p.data.forEach(x => box.append(projectCard(x, by[x.id] || [], false, sync)));
+
   const add = el('button', { onclick: async () => {
-    const { data, error } = await sb.from('projects').insert({ title:'New project' }).select().single();
+    const { data, error } = await sb.from('projects').insert({ title:'New project', published:false }).select().single();
     if (error) return alert('Could not create: ' + error.message);
-    refresh(data.id);
+    const card = projectCard(data, [], true, sync);
+    box.prepend(card); sync();
+    card.scrollIntoView({ block:'nearest' });
   }}, '+ New project');
-  list.replaceChildren(
-    el('div', { style:'margin-bottom:12px' }, add),
-    ...(p.data.length
-      ? p.data.map(x => projectCard(x, by[x.id] || [], refresh, x.id === openId))
-      : [el('p', { class:'msg' }, 'No projects yet. Click “New project” to add one.')]));
+
+  list.replaceChildren(el('div', { style:'margin-bottom:12px' }, add), box, empty);
+  sync();
 }
 
-function thumb(pic, refresh, pid) {
+function thumb(pic, onGone) {
   const k = el('select', { 'aria-label':'Photo label' }, kindOpts(pic.kind));
   k.addEventListener('change', async () => {
     const { error } = await sb.from('project_photos').update({ kind:k.value }).eq('id', pic.id);
@@ -252,66 +280,66 @@ function thumb(pic, refresh, pid) {
     await sb.storage.from(BUCKET).remove([pic.path]);
     const { error } = await sb.from('project_photos').delete().eq('id', pic.id);
     if (error) return alert('Could not delete: ' + error.message);
-    refresh(pid);
+    t.remove(); onGone(pic);
   }}, 'Delete');
-  return el('div', { class:'thumb' }, el('img', { src:pubUrl(pic.path), alt:'', loading:'lazy' }), k, del);
+  const t = el('div', { class:'thumb' }, el('img', { src:pubUrl(pic.path), alt:'', loading:'lazy' }), k, del);
+  return t;
 }
 
-function projectCard(p, pics, refresh, open) {
+function projectCard(p, initialPics, open, onListChange) {
+  let pics = [...initialPics];
+
   const title = el('input', { type:'text', placeholder:'Project title, e.g. Steel boiler replacement, Bronx' });
   title.value = p.title || '';
-  const cat = el('select', {}, opts(Object.keys(CATS), p.category, 'Choose a category…'));
-  const sub = el('select');
-  const size = el('select', {}, opts(SIZES, p.size, '—'));
-  const subF = field('Type', sub), sizeF = field('Job size', size);
-  const fillSub = (cur) => {
-    const types = CATS[cat.value] || [];
-    sub.replaceChildren(...opts(types, cur, '—'));
-    subF.style.display = types.length ? '' : 'none';
-    sizeF.style.display = cat.value === 'New construction' ? '' : 'none';
-  };
-  fillSub(p.subtype);
-  cat.addEventListener('change', () => fillSub(''));
+  const category = choice('Category'), type = choice('Type'), size = choice('Job size');
+  category.set(Object.keys(CATS), p.category);
+  type.set(CATS[p.category] || [], p.subtype);
+  size.set(SIZES, p.size);
+  category.onchange(() => type.set(CATS[category.get()] || [], ''));
 
   const desc = el('textarea', { rows:'4', placeholder:'Describe the job: what was done, building type, anything worth showing off.' });
   desc.value = p.description || '';
-  const pub = el('input', { type:'checkbox' }); pub.checked = !!p.published;
+  const pub = el('input', { type:'checkbox' }); pub.checked = p.published === true;
 
-  const sumTitle = el('strong', {}, p.title || '(untitled)');
-  const sumMeta = el('span', { class:'date' });
-  const badge = el('span', { class:'badge' });
+  const sumTitle = el('strong', {}), sumMeta = el('span', { class:'date' }), badge = el('span', { class:'badge' });
   const showSummary = (t, c, s, live) => {
     sumTitle.textContent = t || '(untitled)';
     sumMeta.textContent = [c, s].filter(Boolean).join(' · ');
     badge.textContent = live ? 'Live' : 'Draft';
     badge.className = 'badge' + (live ? ' live' : '');
   };
-  showSummary(p.title, p.category, p.subtype, p.published);
+  showSummary(p.title, p.category, p.subtype, p.published === true);
 
   const msg = el('span', { class:'date' });
   const save = el('button', { onclick: async () => {
     msg.className = 'date'; msg.textContent = 'Saving…';
     const row = {
       title: title.value.trim() || 'Untitled',
-      category: cat.value || null,
-      subtype: sub.value || null,
-      size: cat.value === 'New construction' ? (size.value || null) : null,
+      category: category.get(), subtype: type.get(), size: size.get(),
       description: desc.value.trim() || null,
       published: pub.checked,
     };
     const { error } = await sb.from('projects').update(row).eq('id', p.id);
     if (error) { msg.className = 'date err'; msg.textContent = 'Not saved: ' + error.message; return; }
-    msg.textContent = 'Saved';
+    msg.textContent = row.published ? 'Saved. This project is live.' : 'Saved as a draft (not on the public page).';
     showSummary(row.title, row.category, row.subtype, row.published);
   }}, 'Save details');
 
+  const d = el('details', { class:'row' });
   const delP = el('button', { class:'ghost', onclick: async () => {
     if (!confirm('Delete this whole project and all its photos? This cannot be undone.')) return;
     if (pics.length) await sb.storage.from(BUCKET).remove(pics.map(x => x.path));
     const { error } = await sb.from('projects').delete().eq('id', p.id);
     if (error) return alert('Could not delete: ' + error.message);
-    refresh();
+    d.remove(); onListChange();
   }}, 'Delete project');
+
+  // Photos: added and removed in place, so nothing you typed above is lost
+  const grid = el('div', { class:'thumbs' });
+  const none = el('p', { class:'msg', style:'padding:0' }, 'No photos yet.');
+  const syncPics = () => { none.style.display = pics.length ? 'none' : ''; grid.style.display = pics.length ? '' : 'none'; };
+  const addThumb = (pic) => grid.append(thumb(pic, (gone) => { pics = pics.filter(x => x.id !== gone.id); syncPics(); }));
+  pics.forEach(addThumb); syncPics();
 
   const files = el('input', { type:'file', accept:'image/*', multiple:'' });
   const kind = el('select', { 'aria-label':'Label for new photos' }, kindOpts('photo'));
@@ -320,35 +348,36 @@ function projectCard(p, pics, refresh, open) {
     const fs = [...files.files];
     if (!fs.length) { upMsg.className = 'date err'; upMsg.textContent = 'Choose photos first.'; return; }
     up.disabled = true; upMsg.className = 'date';
-    try {
-      for (let i = 0; i < fs.length; i++) {
-        upMsg.textContent = `Uploading ${i + 1} of ${fs.length}…`;
+    const failed = [];
+    for (let i = 0; i < fs.length; i++) {
+      upMsg.textContent = `Uploading ${i + 1} of ${fs.length}…`;
+      try {
         const blob = await shrinkImage(fs[i]);
         const path = `${p.id}/${Date.now()}-${i}.jpg`;
         const u = await sb.storage.from(BUCKET).upload(path, blob, { contentType:'image/jpeg' });
         if (u.error) throw u.error;
-        const r = await sb.from('project_photos').insert({ project_id:p.id, path, kind:kind.value });
-        if (r.error) throw r.error;
-      }
-      refresh(p.id);
-    } catch (e) {
-      upMsg.className = 'date err'; upMsg.textContent = 'Upload failed: ' + e.message; up.disabled = false;
+        const r = await sb.from('project_photos').insert({ project_id:p.id, path, kind:kind.value }).select().single();
+        if (r.error) { await sb.storage.from(BUCKET).remove([path]); throw r.error; }
+        pics.push(r.data); addThumb(r.data); syncPics();
+      } catch (e) { failed.push(`${fs[i].name} (${e.message})`); }
     }
+    files.value = ''; up.disabled = false;
+    if (failed.length) { upMsg.className = 'date err'; upMsg.textContent = 'Not uploaded: ' + failed.join('; '); }
+    else upMsg.textContent = `Uploaded ${fs.length} photo${fs.length > 1 ? 's' : ''}.`;
   }}, 'Upload photos');
 
-  const d = el('details', { class:'row' });
   if (open) d.open = true;
   d.append(
     el('summary', {}, sumTitle, badge, sumMeta),
     el('div', { class:'edit' },
       field('Title', title),
-      el('div', { class:'grid2' }, field('Category', cat), subF, sizeF),
+      el('div', { class:'grid2' }, category.node, type.node, size.node),
       field('Description', desc),
-      el('label', { class:'chk' }, pub, 'Show on the public Projects page'),
+      el('label', { class:'chk' }, pub, 'Live on the public Projects page (leave unticked to keep it as a draft)'),
       el('div', { class:'bar' }, save, msg, el('span', { style:'flex:1' }), delP),
       el('hr', { style:'border:0;border-top:1px solid var(--line);width:100%' }),
       el('strong', {}, 'Photos'),
-      pics.length ? el('div', { class:'thumbs' }, pics.map(x => thumb(x, refresh, p.id))) : el('p', { class:'msg', style:'padding:0' }, 'No photos yet.'),
+      none, grid,
       el('div', { class:'bar' }, files, kind, up, upMsg)));
   return d;
 }
