@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>PH Works Staff</title>
+<title>PH Works Admin</title>
 <style>
   :root { --bg:#f5f6f7; --card:#fff; --ink:#1c2227; --muted:#667078; --line:#dde1e4; --accent:#0b5fa5; --new:#c2410c; --prog:#a16207; --done:#15803d; }
   @media (prefers-color-scheme: dark) {
@@ -49,9 +49,10 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
 <script>
 // ---- Fill these two in (Supabase > Project Settings > API). The anon key is safe to be public. ----
-const SUPABASE_URL = 'https://gycuakdoskxmmdjoyqxw.supabase.co/';
+const SUPABASE_URL = 'https://gycuakdoskxmmdjoyqxw.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5Y3Vha2Rvc2t4bW1kam95cXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5MTQyOTEsImV4cCI6MjEwOTQ5MDI5MX0.6FZxvZLFD1ZEMGTTzsSYNn9e5gmSRpu1-lxkek1isZY';
 
+const PAGE = 'admin'; // 'admin' or 'staff'
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 const app = document.getElementById('app');
 
@@ -87,10 +88,10 @@ function showLogin(note) {
       email: email.value.trim(),
       options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname }
     });
-    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link: ' + error.message; }
+    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link: ' + error.message + ''; }
     else out.textContent = 'Check your email for the sign-in link.';
   }},
-    el('h1', {}, 'PH Works staff'),
+    el('h1', {}, 'PH Works Admin'),
     el('p', {}, 'Enter your work email and we’ll send you a sign-in link.'),
     email, el('div', { style:'height:12px' }), el('button', { type:'submit' }, 'Email me a link'), out);
   app.replaceChildren(form);
@@ -99,11 +100,17 @@ function showLogin(note) {
 async function boot() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return showLogin();
-  const { data: staff } = await sb.from('staff').select('role').maybeSingle();
-  if (!staff) {
+  const { data: staff, error } = await sb.from('staff').select('role').maybeSingle();
+  if (error || !staff) {
+    const who = session.user.email;
     await sb.auth.signOut();
-    return showLogin('That email isn’t approved for staff access yet.');
+    return showLogin(error
+      ? 'Could not check access: ' + error.message
+      : `${who} is signed in but not on the approved staff list. Ask Joseph to add it.`);
   }
+  const isAdmin = staff.role === 'admin';
+  if (PAGE === 'admin' && !isAdmin) { location.replace('staff.html'); return; }
+  if (PAGE === 'staff' && isAdmin) { location.replace('admin.html'); return; }
   showDash(session.user.email, staff.role);
 }
 
@@ -119,7 +126,7 @@ function showDash(email, role) {
 
   app.replaceChildren(
     el('header', {},
-      el('div', {}, el('h1', {}, 'PH Works staff'), el('div', { class:'who' }, `${email} · ${role}`)),
+      el('div', {}, el('h1', {}, 'PH Works Admin'), el('div', { class:'who' }, `${email} · ${role}`)),
       el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); showLogin(); } }, 'Sign out')),
     tabs, list);
   select(views[0]);

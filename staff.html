@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>PH Works Team</title>
+<style>
+  :root { --bg:#f5f6f7; --card:#fff; --ink:#1c2227; --muted:#667078; --line:#dde1e4; --accent:#0b5fa5; --new:#c2410c; --prog:#a16207; --done:#15803d; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg:#14181b; --card:#1d2327; --ink:#e8ecef; --muted:#98a3ab; --line:#2f383e; --accent:#5aa9e6; --new:#fb923c; --prog:#facc15; --done:#4ade80; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; font:16px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; background:var(--bg); color:var(--ink); }
+  main { max-width:860px; margin:0 auto; padding:20px 16px 60px; }
+  h1 { font-size:1.3rem; margin:0; }
+  header { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:16px; }
+  .who { color:var(--muted); font-size:.9rem; }
+  button, select, input, textarea { font:inherit; color:inherit; }
+  button { background:var(--accent); color:#fff; border:0; border-radius:6px; padding:9px 14px; cursor:pointer; }
+  button.ghost { background:transparent; color:var(--accent); border:1px solid var(--line); }
+  input[type=email] { width:100%; padding:10px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
+  .login { max-width:380px; margin:12vh auto 0; background:var(--card); border:1px solid var(--line); border-radius:10px; padding:22px; }
+  .login p { color:var(--muted); margin:.4rem 0 1rem; }
+  .tabs { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:14px; }
+  .tabs button { background:var(--card); color:var(--ink); border:1px solid var(--line); }
+  .tabs button[aria-selected=true] { background:var(--accent); color:#fff; border-color:var(--accent); }
+  .row { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; margin-bottom:10px; }
+  .top { display:flex; justify-content:space-between; gap:10px; flex-wrap:wrap; margin-bottom:6px; }
+  .top strong { font-size:1.05rem; }
+  .date { color:var(--muted); font-size:.85rem; }
+  dl { margin:0; display:grid; grid-template-columns:110px 1fr; gap:3px 10px; }
+  dt { color:var(--muted); font-size:.9rem; }
+  dd { margin:0; word-break:break-word; white-space:pre-wrap; }
+  .files { margin-top:8px; display:flex; gap:8px; flex-wrap:wrap; }
+  .files button { padding:5px 10px; font-size:.85rem; }
+  .ctl { display:flex; gap:10px; margin-top:10px; flex-wrap:wrap; align-items:flex-start; }
+  select, textarea { border:1px solid var(--line); border-radius:6px; padding:7px; background:var(--card); }
+  textarea { flex:1; min-width:200px; min-height:38px; resize:vertical; }
+  .s-new { color:var(--new); } .s-in-progress { color:var(--prog); } .s-done { color:var(--done); }
+  .msg { color:var(--muted); padding:20px 0; }
+  .err { color:#b91c1c; }
+  :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+</style>
+</head>
+<body>
+<main id="app"></main>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script>
+// ---- Fill these two in (Supabase > Project Settings > API). The anon key is safe to be public. ----
+const SUPABASE_URL = 'https://gycuakdoskxmmdjoyqxw.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imd5Y3Vha2Rvc2t4bW1kam95cXh3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM5MTQyOTEsImV4cCI6MjEwOTQ5MDI5MX0.6FZxvZLFD1ZEMGTTzsSYNn9e5gmSRpu1-lxkek1isZY';
+
+const PAGE = 'staff'; // 'admin' or 'staff'
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const app = document.getElementById('app');
+
+// Each tab: which roles can open it, which table it reads, which fields to show
+const VIEWS = [
+  { key:'hr', label:'Job applications', table:'job_applications', roles:['admin','hr'],
+    fields:[['email','Email'],['phone','Phone'],['position','Position'],['message','Message']], files:'resume_path' },
+  { key:'service', label:'Service requests', table:'service_requests', roles:['admin','service'],
+    fields:[['email','Email'],['phone','Phone'],['address','Address'],['service_type','Service'],['message','Details']], files:'photo_paths' },
+  { key:'estimating', label:'Estimate requests', table:'estimate_requests', roles:['admin','estimating'],
+    fields:[['email','Email'],['phone','Phone'],['company','Company'],['project_type','Project'],['address','Address'],['plans_link','Plans link'],['message','Details']] },
+];
+const STATUSES = ['new','in progress','done'];
+
+function el(tag, props = {}, ...kids) {
+  const n = document.createElement(tag);
+  for (const [k, v] of Object.entries(props)) {
+    if (k === 'class') n.className = v;
+    else if (k.startsWith('on')) n.addEventListener(k.slice(2), v);
+    else n.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) if (kid != null) n.append(kid.nodeType ? kid : document.createTextNode(kid));
+  return n; // text is always inserted as text, never as HTML
+}
+
+function showLogin(note) {
+  const email = el('input', { type:'email', placeholder:'you@phworksinc.com', required:'', autocomplete:'email' });
+  const out = el('p', { class:'msg' }, note || '');
+  const form = el('form', { class:'login', onsubmit: async (e) => {
+    e.preventDefault();
+    out.className = 'msg'; out.textContent = 'Sending…';
+    const { error } = await sb.auth.signInWithOtp({
+      email: email.value.trim(),
+      options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname }
+    });
+    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link: ' + error.message + ''; }
+    else out.textContent = 'Check your email for the sign-in link.';
+  }},
+    el('h1', {}, 'PH Works Team'),
+    el('p', {}, 'Enter your work email and we’ll send you a sign-in link.'),
+    email, el('div', { style:'height:12px' }), el('button', { type:'submit' }, 'Email me a link'), out);
+  app.replaceChildren(form);
+}
+
+async function boot() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session) return showLogin();
+  const { data: staff, error } = await sb.from('staff').select('role').maybeSingle();
+  if (error || !staff) {
+    const who = session.user.email;
+    await sb.auth.signOut();
+    return showLogin(error
+      ? 'Could not check access: ' + error.message
+      : `${who} is signed in but not on the approved staff list. Ask Joseph to add it.`);
+  }
+  const isAdmin = staff.role === 'admin';
+  if (PAGE === 'admin' && !isAdmin) { location.replace('staff.html'); return; }
+  if (PAGE === 'staff' && isAdmin) { location.replace('admin.html'); return; }
+  showDash(session.user.email, staff.role);
+}
+
+function showDash(email, role) {
+  const views = VIEWS.filter(v => v.roles.includes(role));
+  const list = el('div');
+  const tabs = el('div', { class:'tabs', role:'tablist' });
+  const select = (v) => {
+    [...tabs.children].forEach(b => b.setAttribute('aria-selected', b.dataset.key === v.key));
+    loadView(v, list);
+  };
+  views.forEach(v => tabs.append(el('button', { role:'tab', 'data-key':v.key, 'aria-selected':'false', onclick:() => select(v) }, v.label)));
+
+  app.replaceChildren(
+    el('header', {},
+      el('div', {}, el('h1', {}, 'PH Works Team'), el('div', { class:'who' }, `${email} · ${role}`)),
+      el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); showLogin(); } }, 'Sign out')),
+    tabs, list);
+  select(views[0]);
+}
+
+async function loadView(v, list) {
+  list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
+  const { data, error } = await sb.from(v.table).select('*').order('created_at', { ascending:false }).limit(200);
+  if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
+  if (!data.length) return list.replaceChildren(el('p', { class:'msg' }, 'Nothing here yet.'));
+  list.replaceChildren(...data.map(r => card(v, r)));
+}
+
+function card(v, r) {
+  const dl = el('dl');
+  for (const [k, label] of v.fields) {
+    if (r[k]) dl.append(el('dt', {}, label), el('dd', {}, String(r[k])));
+  }
+  const paths = v.files ? [].concat(r[v.files] || []).filter(Boolean) : [];
+  const files = paths.length ? el('div', { class:'files' }, paths.map((p, i) =>
+    el('button', { class:'ghost', onclick: async () => {
+      const { data, error } = await sb.storage.from('uploads').createSignedUrl(p, 300);
+      if (error) return alert('Could not open file: ' + error.message);
+      window.open(data.signedUrl, '_blank', 'noopener');
+    }}, v.files === 'resume_path' ? 'Open resume' : `Photo ${i + 1}`))) : null;
+
+  const status = el('select', { 'aria-label':'Status' }, STATUSES.map(s => {
+    const o = el('option', { value:s }, s); if (s === r.status) o.selected = true; return o;
+  }));
+  const notes = el('textarea', { placeholder:'Notes' }); notes.value = r.notes || '';
+  const saved = el('span', { class:'date' });
+  const save = async () => {
+    saved.textContent = 'Saving…';
+    const { error } = await sb.from(v.table).update({ status:status.value, notes:notes.value }).eq('id', r.id);
+    saved.textContent = error ? 'Not saved: ' + error.message : 'Saved';
+  };
+  status.addEventListener('change', save);
+  notes.addEventListener('blur', () => { if (notes.value !== (r.notes || '')) { r.notes = notes.value; save(); } });
+
+  return el('div', { class:'row' },
+    el('div', { class:'top' }, el('strong', {}, r.name || '(no name)'), el('span', { class:'date' }, new Date(r.created_at).toLocaleString())),
+    dl, files, el('div', { class:'ctl' }, status, notes, saved));
+}
+
+sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_IN') boot(); });
+boot();
+</script>
+</body>
+</html>
