@@ -58,12 +58,9 @@ const app = document.getElementById('app');
 
 // Each tab: which roles can open it, which table it reads, which fields to show
 const VIEWS = [
-  { key:'hr', label:'Careers', table:'job_applications', roles:['admin','hr'],
-    fields:[['email','Email'],['phone','Phone'],['position','Position'],['message','Message']], files:'resume_path' },
-  { key:'service', label:'Service', table:'service_requests', roles:['admin','service'],
-    fields:[['email','Email'],['phone','Phone'],['address','Address'],['service_type','Service'],['message','Details']], files:'photo_paths' },
-  { key:'estimating', label:'Construction', table:'estimate_requests', roles:['admin','estimating'],
-    fields:[['email','Email'],['phone','Phone'],['company','Company'],['project_type','Project'],['address','Address'],['plans_link','Plans link'],['message','Details']] },
+  { key:'hr', label:'Careers', type:'application', roles:['admin','hr'] },
+  { key:'service', label:'Service', type:'service', roles:['admin','service'] },
+  { key:'estimating', label:'Construction', type:'quote', roles:['admin','estimating'] },
 ];
 const STATUSES = ['new','in progress','done'];
 
@@ -133,7 +130,7 @@ function showDash(email, role) {
 
 async function loadView(v, list) {
   list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
-  const { data, error } = await sb.from(v.table).select('*').order('created_at', { ascending:false }).limit(200);
+  const { data, error } = await sb.from('submissions').select('*').eq('type', v.type).order('created_at', { ascending:false }).limit(200);
   if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
   if (!data.length) return list.replaceChildren(el('p', { class:'msg' }, 'Nothing here yet.'));
   list.replaceChildren(...data.map(r => card(v, r)));
@@ -141,16 +138,17 @@ async function loadView(v, list) {
 
 function card(v, r) {
   const dl = el('dl');
-  for (const [k, label] of v.fields) {
-    if (r[k]) dl.append(el('dt', {}, label), el('dd', {}, String(r[k])));
-  }
-  const paths = v.files ? [].concat(r[v.files] || []).filter(Boolean) : [];
-  const files = paths.length ? el('div', { class:'files' }, paths.map((p, i) =>
+  const add = (k, val) => { if (val) dl.append(el('dt', {}, k), el('dd', {}, String(val))); };
+  add('Email', r.email); add('Phone', r.phone);
+  for (const [k, val] of Object.entries(r.extra || {})) add(k, val);
+  add('Message', r.message);
+
+  const files = (r.files || []).length ? el('div', { class:'files' }, r.files.map((f, i) =>
     el('button', { class:'ghost', onclick: async () => {
-      const { data, error } = await sb.storage.from('uploads').createSignedUrl(p, 300);
+      const { data, error } = await sb.storage.from('uploads').createSignedUrl(f.path, 300);
       if (error) return alert('Could not open file: ' + error.message);
       window.open(data.signedUrl, '_blank', 'noopener');
-    }}, v.files === 'resume_path' ? 'Open resume' : `Photo ${i + 1}`))) : null;
+    }}, f.name || ('File ' + (i + 1))))) : null;
 
   const status = el('select', { 'aria-label':'Status' }, STATUSES.map(s => {
     const o = el('option', { value:s }, s); if (s === r.status) o.selected = true; return o;
@@ -159,7 +157,7 @@ function card(v, r) {
   const saved = el('span', { class:'date' });
   const save = async () => {
     saved.textContent = 'Saving…';
-    const { error } = await sb.from(v.table).update({ status:status.value, notes:notes.value }).eq('id', r.id);
+    const { error } = await sb.from('submissions').update({ status:status.value, notes:notes.value }).eq('id', r.id);
     saved.textContent = error ? 'Not saved: ' + error.message : 'Saved';
   };
   status.addEventListener('change', save);
