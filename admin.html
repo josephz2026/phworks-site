@@ -81,6 +81,7 @@
     <div class="field"><label for="password">Password</label><input id="password" type="password" autocomplete="current-password" required></div>
     <button class="btn primary" style="width:100%" type="submit">Log in</button>
     <p class="err" id="loginErr" role="alert"></p>
+    <p class="meta" id="cfgInfo" style="font-size:.8rem;margin-top:.75rem"></p>
   </form>
 </section>
 
@@ -171,8 +172,15 @@ $('loginForm').addEventListener('submit', async e => {
     email: $('email').value.trim(),
     password: $('password').value
   });
-  if (error) $('loginErr').textContent = 'Wrong email or password.';
+  if (error) $('loginErr').textContent = error.message + (error.status ? ' (code ' + error.status + ')' : '');
 });
+
+// Shows which project and key this page is using, to catch paste mistakes
+(function(){
+  const u = String(PHW_SUPABASE_URL || '').replace(/^https?:\/\//, '');
+  const k = String(PHW_SUPABASE_KEY || '');
+  $('cfgInfo').textContent = 'Connecting to ' + u + ' \u00b7 key starts "' + k.slice(0, 6) + '" and is ' + k.length + ' characters';
+})();
 $('logout').addEventListener('click', () => sb.auth.signOut());
 
 /* ---------- list ---------- */
