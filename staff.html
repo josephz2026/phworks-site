@@ -58,11 +58,11 @@ const app = document.getElementById('app');
 
 // Each tab: which roles can open it, which table it reads, which fields to show
 const VIEWS = [
-  { key:'hr', label:'Job applications', table:'job_applications', roles:['admin','hr'],
+  { key:'hr', label:'Careers', table:'job_applications', roles:['admin','hr'],
     fields:[['email','Email'],['phone','Phone'],['position','Position'],['message','Message']], files:'resume_path' },
-  { key:'service', label:'Service requests', table:'service_requests', roles:['admin','service'],
+  { key:'service', label:'Service', table:'service_requests', roles:['admin','service'],
     fields:[['email','Email'],['phone','Phone'],['address','Address'],['service_type','Service'],['message','Details']], files:'photo_paths' },
-  { key:'estimating', label:'Estimate requests', table:'estimate_requests', roles:['admin','estimating'],
+  { key:'estimating', label:'Construction', table:'estimate_requests', roles:['admin','estimating'],
     fields:[['email','Email'],['phone','Phone'],['company','Company'],['project_type','Project'],['address','Address'],['plans_link','Plans link'],['message','Details']] },
 ];
 const STATUSES = ['new','in progress','done'];
@@ -79,28 +79,27 @@ function el(tag, props = {}, ...kids) {
 }
 
 function showLogin(note) {
-  const email = el('input', { type:'email', placeholder:'you@phworksinc.com', required:'', autocomplete:'email' });
+  const email = el('input', { type:'email', placeholder:'you@phworksinc.com', required:'', autocomplete:'username' });
+  const pass = el('input', { type:'password', placeholder:'Password', required:'', autocomplete:'current-password' });
   const out = el('p', { class:'msg' }, note || '');
   const form = el('form', { class:'login', onsubmit: async (e) => {
     e.preventDefault();
-    out.className = 'msg'; out.textContent = 'Sending…';
-    const { error } = await sb.auth.signInWithOtp({
-      email: email.value.trim(),
-      options: { shouldCreateUser: false, emailRedirectTo: location.origin + location.pathname }
-    });
-    if (error) { out.className = 'msg err'; out.textContent = 'Could not send the link: ' + error.message + ''; }
-    else out.textContent = 'Check your email for the sign-in link.';
+    out.className = 'msg'; out.textContent = 'Signing in…';
+    const { error } = await sb.auth.signInWithPassword({ email: email.value.trim(), password: pass.value });
+    if (error) { out.className = 'msg err'; out.textContent = 'Sign-in failed: ' + error.message; }
   }},
     el('h1', {}, 'PH Works Team'),
-    el('p', {}, 'Enter your work email and we’ll send you a sign-in link.'),
-    email, el('div', { style:'height:12px' }), el('button', { type:'submit' }, 'Email me a link'), out);
+    el('p', {}, 'Sign in with your work email and password.'),
+    email, el('div', { style:'height:10px' }), pass, el('div', { style:'height:12px' }),
+    el('button', { type:'submit' }, 'Sign in'), out);
   app.replaceChildren(form);
 }
 
 async function boot() {
   const { data: { session } } = await sb.auth.getSession();
   if (!session) return showLogin();
-  const { data: staff, error } = await sb.from('staff').select('role').maybeSingle();
+  const { data: role, error } = await sb.rpc('my_role');
+  const staff = role ? { role } : null;
   if (error || !staff) {
     const who = session.user.email;
     await sb.auth.signOut();
@@ -126,7 +125,7 @@ function showDash(email, role) {
 
   app.replaceChildren(
     el('header', {},
-      el('div', {}, el('h1', {}, 'PH Works Team'), el('div', { class:'who' }, `${email} · ${role}`)),
+      el('div', {}, el('h1', {}, 'PH Works Team'), el('div', { class:'who' }, email)),
       el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); showLogin(); } }, 'Sign out')),
     tabs, list);
   select(views[0]);
