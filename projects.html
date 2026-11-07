@@ -242,20 +242,11 @@ button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-heigh
 .portfolio-track{display:flex;gap:inherit;width:max-content;will-change:transform;user-select:none;-webkit-user-select:none}
 .pgrid.is-dragging{cursor:grabbing}
 .portfolio-track img{-webkit-user-drag:none}
-#lb .stage img{cursor:zoom-in}
-#lb .hint{margin:10px 0 0;color:#9db0be;font-size:13px}
-/* zoom layer: pinch / wheel / double-tap, drag to pan */
-#zm{position:fixed;inset:0;z-index:60;display:none;background:#000;overflow:hidden}
-#zm.on{display:block}
-#zm .zs{position:absolute;inset:0;touch-action:none;overflow:hidden;cursor:grab;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-#zm .zs:active{cursor:grabbing}
-#zm img{position:absolute;left:0;top:0;max-width:none;max-height:none;transform-origin:0 0;will-change:transform;-webkit-user-drag:none;user-select:none;pointer-events:none}
-#zm .zb{width:46px;height:46px;border:0;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font:600 26px/1 "Hanken Grotesk",sans-serif;cursor:pointer;display:grid;place-items:center;padding:0}
-#zm .zb:hover{background:var(--flame)}
-#zm .zx{position:absolute;top:max(14px,env(safe-area-inset-top));right:14px;font-size:28px;z-index:2}
-#zm .zbar{position:absolute;left:50%;transform:translateX(-50%);bottom:max(16px,env(safe-area-inset-bottom));display:flex;align-items:center;gap:10px;z-index:2;background:rgba(5,12,20,.6);padding:8px 12px;border-radius:999px}
-#zm .zl{color:#e9eff3;font-size:14px;min-width:84px;text-align:center}
-#zm .zrst{width:auto;border-radius:999px;padding:0 14px;font-size:14px}
+/* zoom on the photo itself */
+#lb .stage{touch-action:none;overflow:hidden;border-radius:10px}
+#lb .stage img{cursor:zoom-in;transform-origin:50% 50%;will-change:transform;user-select:none;-webkit-user-select:none;-webkit-user-drag:none;-webkit-touch-callout:none}
+#lb .stage.zoomed img{cursor:grab}
+#lb .stage.zoomed:active img{cursor:grabbing}
 /* dark blue page, top to bottom, footer included */
 html,body{background:var(--navy)}
 body{color:var(--on)}
@@ -300,18 +291,6 @@ footer .fl a{color:#c3d1dc}
 <div id="lb" role="dialog" aria-modal="true" aria-label="Project photos">
 <button class="x" id="lx" aria-label="Close">&times;</button>
 <div class="box" id="lbox"></div>
-</div>
-<div id="zm" role="dialog" aria-modal="true" aria-label="Zoom photo">
-<div class="zs" id="zs"><img id="zi" alt="" draggable="false"></div>
-<button class="zb zx" id="zx" type="button" aria-label="Close zoom">&times;</button>
-<div class="zbar">
-<button class="zb" id="zp" type="button" aria-label="Previous photo">&#8249;</button>
-<button class="zb" id="zo" type="button" aria-label="Zoom out">&minus;</button>
-<span class="zl" id="zl">100%</span>
-<button class="zb" id="zn2" type="button" aria-label="Zoom in">+</button>
-<button class="zb zrst" id="zr" type="button">Reset</button>
-<button class="zb" id="zn" type="button" aria-label="Next photo">&#8250;</button>
-</div>
 </div>
 <script>
 var mb=document.getElementById('mb'),nv=document.getElementById('nv');
@@ -524,6 +503,70 @@ if(document.fonts)document.fonts.ready.then(fitPortfolio);
 var cur=null,idx=0;
 var CH_L='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
 var CH_R='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6"/></svg>';
+var zoomFit=null;
+window.addEventListener('resize',function(){if(zoomFit)zoomFit()});
+function zoomable(st,im,canSwipe){
+  var s=1,x=0,y=0,bw=0,bh=0,MAX=6,ptrs={},pinch=null,pinched=false,start=null;
+  function apply(){
+    var vw=st.clientWidth,vh=st.clientHeight,mx=Math.max(0,(bw*s-vw)/2),my=Math.max(0,(bh*s-vh)/2);
+    x=Math.min(mx,Math.max(-mx,x));y=Math.min(my,Math.max(-my,y));
+    im.style.transform=s===1?'':'translate('+x+'px,'+y+'px) scale('+s+')';
+    st.classList.toggle('zoomed',s>1);
+  }
+  function fit(){
+    var nw=im.naturalWidth,nh=im.naturalHeight;if(!nw||!nh)return;
+    var f=Math.min(st.clientWidth/nw,st.clientHeight/nh);
+    bw=nw*f;bh=nh*f;im.style.width=bw+'px';im.style.height=bh+'px';apply();
+  }
+  zoomFit=fit;im.addEventListener('load',fit);
+  function zoomAt(px,py,ns){
+    ns=Math.min(MAX,Math.max(1,ns));var r=ns/s;
+    x=px-(px-x)*r;y=py-(py-y)*r;s=ns;if(s===1){x=0;y=0}apply();
+  }
+  function rel(e){var r=st.getBoundingClientRect();return{x:e.clientX-r.left-r.width/2,y:e.clientY-r.top-r.height/2}}
+  st.addEventListener('wheel',function(e){
+    e.preventDefault();
+    var p=rel(e),dy=e.deltaMode===1?e.deltaY*33:e.deltaY;
+    zoomAt(p.x,p.y,s*Math.exp(-dy*(e.ctrlKey?0.01:0.0018)));
+  },{passive:false});
+  st.addEventListener('pointerdown',function(e){
+    if(e.target.closest&&e.target.closest('.nav'))return;
+    try{st.setPointerCapture(e.pointerId)}catch(_){}
+    var p=rel(e);ptrs[e.pointerId]={x:p.x,y:p.y};
+    var ids=Object.keys(ptrs);
+    if(ids.length===1){pinched=false;start={x:e.clientX,y:e.clientY}}
+    if(ids.length===2){pinched=true;var a=ptrs[ids[0]],b=ptrs[ids[1]];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,mx:(a.x+b.x)/2,my:(a.y+b.y)/2}}
+  });
+  st.addEventListener('pointermove',function(e){
+    var q=ptrs[e.pointerId];if(!q)return;
+    var p=rel(e),ids=Object.keys(ptrs);
+    if(ids.length>=2&&pinch){
+      q.x=p.x;q.y=p.y;
+      var a=ptrs[ids[0]],b=ptrs[ids[1]],d=Math.hypot(a.x-b.x,a.y-b.y)||1,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
+      x+=mx-pinch.mx;y+=my-pinch.my;
+      zoomAt(mx,my,s*d/pinch.d);
+      pinch.d=d;pinch.mx=mx;pinch.my=my;
+    }else if(ids.length===1&&s>1){
+      x+=p.x-q.x;y+=p.y-q.y;q.x=p.x;q.y=p.y;apply();
+    }
+  });
+  function up(e){
+    if(!ptrs[e.pointerId])return;
+    delete ptrs[e.pointerId];pinch=null;
+    if(!Object.keys(ptrs).length&&start){
+      var dx=e.clientX-start.x,dy=e.clientY-start.y;start=null;
+      if(canSwipe&&!pinched&&s===1&&e.type==='pointerup'&&e.pointerType==='touch'&&Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.2)go(dx<0?1:-1);
+    }
+  }
+  st.addEventListener('pointerup',up);
+  st.addEventListener('pointercancel',up);
+}
+function openHash(){
+  var m=/^#p-(.+)$/.exec(location.hash);if(!m)return;
+  var id=decodeURIComponent(m[1]);
+  var p=all.filter(function(x){return String(x.id)===id})[0];
+  if(p&&(p.photos||[]).length)open(p);
+}
 function show(){
   var photos=cur.photos||[],ph=photos[idx];
   box.innerHTML='';
@@ -534,18 +577,14 @@ function show(){
   if(!ph)return;
   var st=el('div','stage');
   var im=document.createElement('img');im.src=ph.url;im.alt=(ph.caption||cur.title)+' (photo '+(idx+1)+' of '+photos.length+')';
-  im.addEventListener('click',function(){openZoom()});
   st.appendChild(im);
+  zoomable(st,im,photos.length>1);
   if(photos.length>1){
     var pv=el('button','nav pv');pv.type='button';pv.setAttribute('aria-label','Previous photo');pv.innerHTML=CH_L;pv.addEventListener('click',function(){go(-1)});
     var nx=el('button','nav nx');nx.type='button';nx.setAttribute('aria-label','Next photo');nx.innerHTML=CH_R;nx.addEventListener('click',function(){go(1)});
     st.appendChild(pv);st.appendChild(nx);
-    var sx=null;
-    st.addEventListener('touchstart',function(e){sx=e.touches[0].clientX},{passive:true});
-    st.addEventListener('touchend',function(e){if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>45)go(dx<0?1:-1)},{passive:true});
   }
   box.appendChild(st);
-  box.appendChild(el('p','hint','Click or tap the photo to zoom'));
   // Keep the counter in the same place even when captions or labels differ.
   if(photos.length>1)box.appendChild(el('div','count',(idx+1)+' of '+photos.length));
   if(ph.label){var d=el('div');d.appendChild(el('span','tag',ph.label));box.appendChild(d)}
@@ -553,110 +592,15 @@ function show(){
   // preload neighbours so the arrows feel instant
   [1,-1].forEach(function(o){var n=photos[(idx+o+photos.length)%photos.length];if(n){var pi=new Image();pi.src=n.url}});
 }
-/* ---- zoom layer ---- */
-var zm=document.getElementById('zm'),zs=document.getElementById('zs'),zi=document.getElementById('zi'),zl=document.getElementById('zl');
-var Z={s:1,x:0,y:0,bw:0,bh:0},ptrs={},pinch=null,lastTap=null,MAXZ=8;
-function zclamp(){
-  var w=Z.bw*Z.s,h=Z.bh*Z.s,vw=zs.clientWidth,vh=zs.clientHeight;
-  Z.x=w<=vw?(vw-w)/2:Math.min(0,Math.max(vw-w,Z.x));
-  Z.y=h<=vh?(vh-h)/2:Math.min(0,Math.max(vh-h,Z.y));
-}
-function zapply(){zclamp();zi.style.transform='translate('+Z.x+'px,'+Z.y+'px) scale('+Z.s+')';zl.textContent=Math.round(Z.s*100)+'%'}
-function zfit(){
-  var nw=zi.naturalWidth,nh=zi.naturalHeight;if(!nw||!nh)return;
-  var f=Math.min(zs.clientWidth/nw,zs.clientHeight/nh);
-  Z.bw=nw*f;Z.bh=nh*f;zi.style.width=Z.bw+'px';zi.style.height=Z.bh+'px';Z.s=1;zapply();
-}
-function zat(cx,cy,ns){
-  ns=Math.min(MAXZ,Math.max(1,ns));
-  if(ns===1){Z.s=1;zapply();return}
-  var r=ns/Z.s;Z.x=cx-(cx-Z.x)*r;Z.y=cy-(cy-Z.y)*r;Z.s=ns;zapply();
-}
-function loadZoom(){
-  var photos=cur.photos||[],ph=photos[idx];if(!ph)return;
-  zi.style.width='';zi.style.height='';zi.style.transform='translate(0,0)';
-  zi.onload=zfit;zi.alt=(ph.caption||cur.title)+' (photo '+(idx+1)+' of '+photos.length+')';zi.src=ph.url;
-  if(zi.complete&&zi.naturalWidth)zfit();
-  var many=photos.length>1;
-  document.getElementById('zp').style.display=many?'':'none';
-  document.getElementById('zn').style.display=many?'':'none';
-}
-function openZoom(){if(!cur||!(cur.photos||[])[idx])return;zm.classList.add('on');loadZoom()}
-function closeZoom(){zm.classList.remove('on');zi.onload=null;zi.removeAttribute('src');ptrs={};pinch=null;lastTap=null}
-zs.addEventListener('pointerdown',function(e){
-  try{zs.setPointerCapture(e.pointerId)}catch(_){}
-  var r=zs.getBoundingClientRect();
-  ptrs[e.pointerId]={x:e.clientX-r.left,y:e.clientY-r.top,sx:e.clientX,sy:e.clientY,t:Date.now(),moved:false};
-  var ids=Object.keys(ptrs);
-  if(ids.length===2){var a=ptrs[ids[0]],b=ptrs[ids[1]];pinch={d:Math.hypot(a.x-b.x,a.y-b.y)||1,mx:(a.x+b.x)/2,my:(a.y+b.y)/2}}
-});
-zs.addEventListener('pointermove',function(e){
-  var p=ptrs[e.pointerId];if(!p)return;
-  var r=zs.getBoundingClientRect(),nx=e.clientX-r.left,ny=e.clientY-r.top;
-  if(Math.hypot(e.clientX-p.sx,e.clientY-p.sy)>8)p.moved=true;
-  var ids=Object.keys(ptrs);
-  if(ids.length>=2&&pinch){
-    p.x=nx;p.y=ny;
-    var a=ptrs[ids[0]],b=ptrs[ids[1]];
-    var d=Math.hypot(a.x-b.x,a.y-b.y)||1,mx=(a.x+b.x)/2,my=(a.y+b.y)/2;
-    Z.x+=mx-pinch.mx;Z.y+=my-pinch.my;
-    zat(mx,my,Z.s*d/pinch.d);
-    pinch.d=d;pinch.mx=mx;pinch.my=my;
-  }else if(ids.length===1){
-    Z.x+=nx-p.x;Z.y+=ny-p.y;p.x=nx;p.y=ny;zapply();
-  }
-});
-function zup(e){
-  var p=ptrs[e.pointerId];if(!p)return;
-  var multi=Object.keys(ptrs).length>1;
-  delete ptrs[e.pointerId];pinch=null;
-  if(e.type==='pointercancel'||multi||p.moved||Date.now()-p.t>350)return;
-  var n=Date.now();
-  if(lastTap&&n-lastTap.t<350&&Math.hypot(p.sx-lastTap.x,p.sy-lastTap.y)<40){
-    lastTap=null;
-    if(Z.s>1.05)zat(0,0,1);else zat(p.x,p.y,2.5);
-  }else lastTap={t:n,x:p.sx,y:p.sy};
-}
-zs.addEventListener('pointerup',zup);
-zs.addEventListener('pointercancel',zup);
-zs.addEventListener('wheel',function(e){
-  e.preventDefault();
-  var r=zs.getBoundingClientRect(),dy=e.deltaMode===1?e.deltaY*33:e.deltaY;
-  zat(e.clientX-r.left,e.clientY-r.top,Z.s*Math.exp(-dy*(e.ctrlKey?0.01:0.0018)));
-},{passive:false});
-document.getElementById('zn2').addEventListener('click',function(){zat(zs.clientWidth/2,zs.clientHeight/2,Z.s*1.5)});
-document.getElementById('zo').addEventListener('click',function(){zat(zs.clientWidth/2,zs.clientHeight/2,Z.s/1.5)});
-document.getElementById('zr').addEventListener('click',function(){zat(0,0,1)});
-document.getElementById('zx').addEventListener('click',closeZoom);
-document.getElementById('zp').addEventListener('click',function(){go(-1)});
-document.getElementById('zn').addEventListener('click',function(){go(1)});
-window.addEventListener('resize',function(){if(zm.classList.contains('on'))zfit()});
-function openHash(){
-  var m=/^#p-(.+)$/.exec(location.hash);if(!m)return;
-  var id=decodeURIComponent(m[1]);
-  var p=all.filter(function(x){return String(x.id)===id})[0];
-  if(p&&(p.photos||[]).length)open(p);
-}
-function go(d){var n=(cur.photos||[]).length;idx=(idx+d+n)%n;show();if(zm.classList.contains('on'))loadZoom()}
+function go(d){var n=(cur.photos||[]).length;idx=(idx+d+n)%n;show()}
 function open(p){
   cur=p;idx=0;show();
   lb.classList.add('on');lb.scrollTop=0;document.body.style.overflow='hidden';
 }
-function close(){closeZoom();lb.classList.remove('on');if(/^#p-/.test(location.hash)&&history.replaceState)history.replaceState(null,'',location.pathname+location.search);document.body.style.overflow='';box.innerHTML=''}
+function close(){lb.classList.remove('on');if(/^#p-/.test(location.hash)&&history.replaceState)history.replaceState(null,'',location.pathname+location.search);document.body.style.overflow='';box.innerHTML=''}
 document.getElementById('lx').addEventListener('click',close);
 lb.addEventListener('click',function(e){if(e.target===lb)close()});
-document.addEventListener('keydown',function(e){if(!lb.classList.contains('on'))return;
-  if(zm.classList.contains('on')){
-    var k=e.key,n2=(cur&&cur.photos||[]).length;
-    if(k==='Escape')closeZoom();
-    else if(k==='+'||k==='=')zat(zs.clientWidth/2,zs.clientHeight/2,Z.s*1.5);
-    else if(k==='-'||k==='_')zat(zs.clientWidth/2,zs.clientHeight/2,Z.s/1.5);
-    else if(k==='0')zat(0,0,1);
-    else if(k==='ArrowRight'&&n2>1)go(1);
-    else if(k==='ArrowLeft'&&n2>1)go(-1);
-    return;
-  }
-  if(e.key==='Escape')close();if(e.key==='ArrowRight'&&cur&&cur.photos.length>1)go(1);if(e.key==='ArrowLeft'&&cur&&cur.photos.length>1)go(-1)});
+document.addEventListener('keydown',function(e){if(!lb.classList.contains('on'))return;if(e.key==='Escape')close();if(e.key==='ArrowRight'&&cur&&cur.photos.length>1)go(1);if(e.key==='ArrowLeft'&&cur&&cur.photos.length>1)go(-1)});
 if(typeof PHW_SUPABASE_URL==='undefined'||PHW_SUPABASE_URL.indexOf('YOUR-')>-1){msg.textContent='Coming soon.';return}
 fetch(PHW_SUPABASE_URL+'/rest/v1/projects?published=eq.true&order=created_at.desc&select=*,project_photos(*)',{headers:{apikey:PHW_SUPABASE_KEY,Authorization:'Bearer '+PHW_SUPABASE_KEY}})
   .then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
