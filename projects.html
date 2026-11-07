@@ -236,6 +236,9 @@ button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-heigh
   #pcats{margin-top:18px}
   .portfolio-controls{margin-left:16px;margin-right:16px}
 }
+
+/* Motion only: prevent native snap from fighting the continuous loop. */
+.pgrid{scroll-snap-type:none;scroll-behavior:auto;overflow-anchor:none}
 </style>
 </head>
 <body>
@@ -339,21 +342,41 @@ var carouselTimer=null,carouselPaused=false,carouselHover=false,carouselTouch=fa
 var controls=document.getElementById('portfolio-controls'),dots=document.getElementById('portfolio-dots');
 var pauseButton=document.getElementById('portfolio-pause');
 var carouselCount=0,carouselLoop=false,carouselSettle=null;
+var carouselFrame=null,carouselTime=0,carouselPosition=null,carouselTarget=null;
 function carouselStep(){return grid.children.length?grid.children[0].getBoundingClientRect().width+parseFloat(getComputedStyle(grid).gap):1}
 function carouselIndex(){return Math.round(grid.scrollLeft/carouselStep())-(carouselLoop?carouselCount:0)}
 function carouselMove(index){
   if(!carouselCount)return;
-  var physical=index+(carouselLoop?carouselCount:0);
-  grid.scrollTo({left:physical*carouselStep(),behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+  carouselPosition=grid.scrollLeft;
+  carouselTarget=(index+(carouselLoop?carouselCount:0))*carouselStep();
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){grid.scrollLeft=carouselTarget;carouselPosition=grid.scrollLeft;carouselTarget=null;normalizeCarousel()}
 }
 function normalizeCarousel(){
   if(!carouselLoop||carouselTouch)return;
-  var step=carouselStep(),position=grid.scrollLeft/step;
-  if(position<carouselCount||position>=carouselCount*2){
-    var normalized=((position-carouselCount)%carouselCount+carouselCount)%carouselCount+carouselCount;
-    // Identical neighbouring copies keep the picture still during this invisible reset.
-    grid.scrollTo({left:normalized*step,behavior:'instant'});
+  var period=carouselCount*carouselStep(),position=grid.scrollLeft;
+  var shift=position<period?period:position>=period*2?-period:0;
+  if(shift){
+    grid.scrollLeft=position+shift;
+    carouselPosition=(carouselPosition===null?position:carouselPosition)+shift;
+    if(carouselTarget!==null)carouselTarget+=shift;
   }
+}
+function animateCarousel(time){
+  var dt=carouselTime?Math.min((time-carouselTime)/1000,.05):0;carouselTime=time;
+  var reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var rect=grid.getBoundingClientRect();
+  var blocked=carouselTouch||document.hidden||lb.classList.contains('on')||rect.bottom<0||rect.top>innerHeight;
+  if(carouselTarget!==null&&!blocked){
+    var delta=carouselTarget-carouselPosition;
+    carouselPosition+=delta*(1-Math.exp(-12*dt));
+    if(Math.abs(delta)<.5){carouselPosition=carouselTarget;carouselTarget=null}
+    grid.scrollLeft=carouselPosition;normalizeCarousel();
+  }else if(carouselLoop&&!blocked&&!carouselPaused&&!carouselHover&&!grid.contains(document.activeElement)&&!reduced){
+    if(carouselPosition===null)carouselPosition=grid.scrollLeft;
+    carouselPosition+=28*dt;
+    grid.scrollLeft=carouselPosition;normalizeCarousel();
+  }else{carouselPosition=grid.scrollLeft}
+  carouselFrame=requestAnimationFrame(animateCarousel);
 }
 function syncCarousel(){
   var index=carouselCount?((carouselIndex()%carouselCount)+carouselCount)%carouselCount:0;
@@ -362,7 +385,7 @@ function syncCarousel(){
   document.getElementById('portfolio-next').disabled=!carouselLoop;
 }
 function setupCarousel(){
-  clearInterval(carouselTimer);clearTimeout(carouselSettle);dots.innerHTML='';
+  clearInterval(carouselTimer);clearTimeout(carouselSettle);cancelAnimationFrame(carouselFrame);carouselTime=0;carouselTarget=null;carouselPosition=null;dots.innerHTML='';
   var originals=Array.from(grid.children);carouselCount=originals.length;carouselLoop=false;
   originals.forEach(function(card,i){var d=el('button');d.type='button';d.setAttribute('aria-label','Go to '+card.querySelector('.nm').textContent);d.addEventListener('click',function(){carouselMove(i)});dots.appendChild(d)});
   requestAnimationFrame(function(){
@@ -382,23 +405,18 @@ function setupCarousel(){
       grid.insertBefore(before,grid.firstChild);grid.appendChild(after);
       grid.scrollTo({left:carouselCount*carouselStep(),behavior:'instant'});
     }
-    controls.hidden=!carouselLoop;syncCarousel();fitPortfolio();
+    controls.hidden=!carouselLoop;syncCarousel();fitPortfolio();carouselPosition=grid.scrollLeft;carouselFrame=requestAnimationFrame(animateCarousel);
   });
-  carouselTimer=setInterval(function(){
-    if(carouselPaused||carouselHover||carouselTouch||!carouselLoop||document.hidden||lb.classList.contains('on')||grid.contains(document.activeElement)||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
-    if(grid.getBoundingClientRect().bottom<0||grid.getBoundingClientRect().top>innerHeight)return;
-    normalizeCarousel();carouselMove(carouselIndex()+1);
-  },4200);
 }
-grid.addEventListener('scroll',function(){syncCarousel();clearTimeout(carouselSettle);carouselSettle=setTimeout(normalizeCarousel,180)},{passive:true});
+grid.addEventListener('scroll',syncCarousel,{passive:true});
 grid.addEventListener('mouseenter',function(){carouselHover=true});grid.addEventListener('mouseleave',function(){carouselHover=false});
-grid.addEventListener('touchstart',function(){carouselTouch=true},{passive:true});
-grid.addEventListener('touchend',function(){carouselTouch=false;carouselPaused=true;pauseButton.textContent='\u25b6';pauseButton.setAttribute('aria-label','Resume automatic sliding');pauseButton.setAttribute('aria-pressed','true')},{passive:true});
+grid.addEventListener('touchstart',function(){carouselTouch=true;carouselTarget=null;carouselPosition=null},{passive:true});
+grid.addEventListener('touchend',function(){carouselTouch=false;carouselPosition=grid.scrollLeft;carouselPaused=true;pauseButton.textContent='\u25b6';pauseButton.setAttribute('aria-label','Resume automatic sliding');pauseButton.setAttribute('aria-pressed','true')},{passive:true});
 grid.addEventListener('touchcancel',function(){carouselTouch=false},{passive:true});
 document.getElementById('portfolio-prev').addEventListener('click',function(){carouselMove(carouselIndex()-1)});
 document.getElementById('portfolio-next').addEventListener('click',function(){carouselMove(carouselIndex()+1)});
 pauseButton.addEventListener('click',function(){carouselPaused=!carouselPaused;pauseButton.textContent=carouselPaused?'\u25b6':'\u275a\u275a';pauseButton.setAttribute('aria-label',carouselPaused?'Resume automatic sliding':'Pause automatic sliding');pauseButton.setAttribute('aria-pressed',String(carouselPaused))});
-window.addEventListener('resize',function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel();fitPortfolio();carouselMove(carouselIndex())});
+window.addEventListener('resize',function(){controls.hidden=!carouselLoop;carouselTarget=null;carouselPosition=grid.scrollLeft;normalizeCarousel();syncCarousel();fitPortfolio()});
 
 
 // Size cards from the actual header/filter heights, including wrapped filters.
