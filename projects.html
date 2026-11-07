@@ -238,7 +238,10 @@ button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-heigh
 }
 
 /* Motion only: prevent native snap from fighting the continuous loop. */
-.pgrid{scroll-snap-type:none;scroll-behavior:auto;overflow-anchor:none}
+.pgrid{display:block;overflow:hidden;scroll-snap-type:none;scroll-behavior:auto;overflow-anchor:none;touch-action:pan-y;cursor:grab}
+.portfolio-track{display:flex;gap:inherit;width:max-content;will-change:transform;user-select:none;-webkit-user-select:none}
+.pgrid.is-dragging{cursor:grabbing}
+.portfolio-track img{-webkit-user-drag:none}
 </style>
 </head>
 <body>
@@ -287,6 +290,7 @@ nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.
 (function(){
 var grid=document.getElementById('pgrid'),msg=document.getElementById('pmsg');
 var catBox=document.getElementById('pcats'),subBox=document.getElementById('psubs');
+var track=document.createElement('div');track.className='portfolio-track';grid.appendChild(track);
 var lb=document.getElementById('lb'),box=document.getElementById('lbox');
 var ORDER=['Boiler','Pumps','New construction','Gas re-pipes'];
 var all=[],fCat='',fSub='';
@@ -310,7 +314,8 @@ function filters(){
 }
 function render(){
   var list=all.filter(function(p){return(!fCat||p.category===fCat)&&(!fSub||p.subtype===fSub)});
-  grid.innerHTML='';
+  cancelAnimationFrame(carouselFrame);carouselGeneration++;
+  track.innerHTML='';
   if(!list.length){document.getElementById('portfolio-controls').hidden=true;msg.style.display='';msg.textContent=all.length?'No projects here yet.':'Coming soon.';return}
   msg.style.display='none';
   list.forEach(function(p){
@@ -327,77 +332,90 @@ function render(){
     b.setAttribute('aria-label',p.title+'. View project photos');
     b.appendChild(cov);b.appendChild(cap);
     b.addEventListener('click',function(e){
+      if(carouselMoved){e.preventDefault();return}
       if(e.detail!==0 && !window.matchMedia('(hover: hover) and (pointer: fine)').matches && !b.classList.contains('is-revealed')){
         grid.querySelectorAll('.is-revealed').forEach(function(card){card.classList.remove('is-revealed')});
         b.classList.add('is-revealed');return;
       }
       open(p);
     });
-    grid.appendChild(b);
+    track.appendChild(b);
   });
-  grid.scrollLeft=0;setupCarousel();
+  carouselPosition=0;setupCarousel();
 }
 
-var carouselTimer=null,carouselPaused=false,carouselHover=false,carouselTouch=false;
+// Use the homepage's translate3d track, 34 px/s base speed and velocity easing.
+var carouselPaused=false,carouselHover=false,carouselTouch=false;
 var controls=document.getElementById('portfolio-controls'),dots=document.getElementById('portfolio-dots');
 var pauseButton=document.getElementById('portfolio-pause');
-var carouselCount=0,carouselLoop=false,carouselSettle=null;
-var carouselFrame=null,carouselTime=0,carouselPosition=null,carouselTarget=null;
-var carouselSpeed=18,carouselVelocity=0;
-function carouselStep(){return grid.children.length?grid.children[0].getBoundingClientRect().width+parseFloat(getComputedStyle(grid).gap):1}
-function carouselIndex(){return Math.round(grid.scrollLeft/carouselStep())-(carouselLoop?carouselCount:0)}
+var carouselCount=0,carouselLoop=false,carouselGeneration=0,carouselUnit=0;
+var carouselFrame=null,carouselTime=0,carouselPosition=0,carouselTarget=null;
+var carouselSpeed=34,carouselVelocity=0,carouselMoved=false;
+function carouselStep(){
+  if(!carouselUnit&&track.children.length)carouselUnit=track.children[0].getBoundingClientRect().width+(parseFloat(getComputedStyle(track).gap)||0);
+  return carouselUnit||1;
+}
+function carouselIndex(){return Math.round(carouselPosition/carouselStep())-(carouselLoop?carouselCount:0)}
+function paintCarousel(){track.style.transform='translate3d('+(-carouselPosition)+'px,0,0)'}
 function carouselMove(index){
   if(!carouselCount)return;
-  carouselPosition=grid.scrollLeft;
   carouselTarget=(index+(carouselLoop?carouselCount:0))*carouselStep();
-  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){grid.scrollLeft=carouselTarget;carouselPosition=grid.scrollLeft;carouselTarget=null;normalizeCarousel()}
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){carouselPosition=carouselTarget;carouselTarget=null;normalizeCarousel();paintCarousel();syncCarousel()}
 }
 function normalizeCarousel(){
-  if(!carouselLoop||carouselTouch)return;
-  var period=carouselCount*carouselStep(),position=grid.scrollLeft;
-  // Keep a half-set buffer so fractional scroll rounding cannot bounce between loop edges.
-  var shift=position<period*.5?period:position>=period*2.5?-period:0;
-  if(shift){
-    grid.scrollLeft=position+shift;
-    carouselPosition=(carouselPosition===null?position:carouselPosition)+shift;
-    if(carouselTarget!==null)carouselTarget+=shift;
-  }
+  if(!carouselLoop)return;
+  var period=carouselCount*carouselStep();
+  if(!period)return;
+  var normalized=((carouselPosition-period)%period+period)%period+period;
+  var shift=normalized-carouselPosition;
+  carouselPosition=normalized;
+  if(carouselTarget!==null)carouselTarget+=shift;
 }
 function animateCarousel(time){
   var dt=carouselTime?Math.min((time-carouselTime)/1000,.05):0;carouselTime=time;
   var reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var rect=grid.getBoundingClientRect();
-  var blocked=carouselTouch||document.hidden||lb.classList.contains('on')||rect.bottom<0||rect.top>innerHeight;
-  if(carouselTarget!==null&&!blocked){
-    carouselVelocity=0;
-    var delta=carouselTarget-carouselPosition;
-    carouselPosition+=delta*(1-Math.exp(-6*dt));
-    if(Math.abs(delta)<.5){carouselPosition=carouselTarget;carouselTarget=null}
-    grid.scrollLeft=carouselPosition;normalizeCarousel();
-  }else if(carouselLoop&&!blocked&&!carouselPaused&&!carouselHover&&!grid.contains(document.activeElement)&&!reduced){
-    if(carouselPosition===null)carouselPosition=grid.scrollLeft;
-    carouselVelocity+=(carouselSpeed-carouselVelocity)*(1-Math.exp(-3*dt));
-    carouselPosition+=carouselVelocity*dt;
-    grid.scrollLeft=carouselPosition;normalizeCarousel();
-  }else{carouselPosition=grid.scrollLeft;carouselVelocity=0}
+  var visible=!document.hidden&&!lb.classList.contains('on')&&rect.bottom>0&&rect.top<innerHeight;
+  if(visible){
+    if(!carouselTouch){
+      if(carouselTarget!==null){
+        carouselVelocity=0;
+        var delta=carouselTarget-carouselPosition;
+        carouselPosition+=delta*(1-Math.exp(-6*dt));
+        if(Math.abs(delta)<.1){carouselPosition=carouselTarget;carouselTarget=null}
+      }else{
+        var base=carouselLoop&&!reduced&&!carouselPaused&&!carouselHover&&!grid.contains(document.activeElement)?carouselSpeed:0;
+        carouselVelocity+=(base-carouselVelocity)*Math.min(1,dt*3);
+        carouselPosition+=carouselVelocity*dt;
+      }
+    }
+    normalizeCarousel();paintCarousel();syncCarousel();
+  }
   carouselFrame=requestAnimationFrame(animateCarousel);
 }
 function syncCarousel(){
   var index=carouselCount?((carouselIndex()%carouselCount)+carouselCount)%carouselCount:0;
-  dots.querySelectorAll('button').forEach(function(b,i){b.setAttribute('aria-current',String(i===index))});
+  dots.querySelectorAll('button').forEach(function(b,i){
+    var current=String(i===index);if(b.getAttribute('aria-current')!==current)b.setAttribute('aria-current',current);
+  });
   document.getElementById('portfolio-prev').disabled=!carouselLoop;
   document.getElementById('portfolio-next').disabled=!carouselLoop;
 }
 function setupCarousel(){
-  clearInterval(carouselTimer);clearTimeout(carouselSettle);cancelAnimationFrame(carouselFrame);carouselTime=0;carouselVelocity=0;carouselTarget=null;carouselPosition=null;dots.innerHTML='';
-  var originals=Array.from(grid.children);carouselCount=originals.length;carouselLoop=false;
+  cancelAnimationFrame(carouselFrame);carouselTime=0;carouselVelocity=0;carouselTarget=null;dots.innerHTML='';
+  track.querySelectorAll('[data-carousel-clone]').forEach(function(node){node.remove()});
+  var originals=Array.from(track.children);carouselCount=originals.length;carouselLoop=false;carouselUnit=0;
+  var generation=++carouselGeneration;
   originals.forEach(function(card,i){var d=el('button');d.type='button';d.setAttribute('aria-label','Go to '+card.querySelector('.nm').textContent);d.addEventListener('click',function(){carouselMove(i)});dots.appendChild(d)});
   requestAnimationFrame(function(){
-    carouselLoop=carouselCount>1&&grid.scrollWidth>grid.clientWidth+2;
+    if(generation!==carouselGeneration)return;
+    var step=carouselStep();
+    carouselLoop=carouselCount>1&&track.scrollWidth>grid.clientWidth-parseFloat(getComputedStyle(grid).paddingLeft)-parseFloat(getComputedStyle(grid).paddingRight)+2;
     if(carouselLoop){
       function copy(card){
-        var clone=card.cloneNode(true);clone.classList.remove('is-revealed');clone.tabIndex=-1;clone.setAttribute('aria-hidden','true');
+        var clone=card.cloneNode(true);clone.classList.remove('is-revealed');clone.tabIndex=-1;clone.setAttribute('aria-hidden','true');clone.setAttribute('data-carousel-clone','');
         clone.addEventListener('click',function(e){
+          if(carouselMoved){e.preventDefault();return}
           if(e.detail!==0&&!window.matchMedia('(hover: hover) and (pointer: fine)').matches&&!clone.classList.contains('is-revealed')){
             grid.querySelectorAll('.is-revealed').forEach(function(c){c.classList.remove('is-revealed')});clone.classList.add('is-revealed');return;
           }
@@ -406,28 +424,55 @@ function setupCarousel(){
       }
       var before=document.createDocumentFragment(),after=document.createDocumentFragment();
       originals.forEach(function(card){before.appendChild(copy(card));after.appendChild(copy(card))});
-      grid.insertBefore(before,grid.firstChild);grid.appendChild(after);
-      grid.scrollTo({left:carouselCount*carouselStep(),behavior:'instant'});
-    }
-    controls.hidden=!carouselLoop;syncCarousel();fitPortfolio();carouselPosition=grid.scrollLeft;carouselFrame=requestAnimationFrame(animateCarousel);
+      track.insertBefore(before,track.firstChild);track.appendChild(after);
+      carouselPosition=carouselCount*step;
+    }else carouselPosition=0;
+    controls.hidden=!carouselLoop;syncCarousel();fitPortfolio();paintCarousel();carouselFrame=requestAnimationFrame(animateCarousel);
   });
 }
-grid.addEventListener('scroll',syncCarousel,{passive:true});
-grid.addEventListener('mouseenter',function(){carouselHover=true});grid.addEventListener('mouseleave',function(){carouselHover=false});
-grid.addEventListener('touchstart',function(){carouselTouch=true;carouselTarget=null;carouselPosition=null},{passive:true});
-grid.addEventListener('touchend',function(){carouselTouch=false;carouselPosition=grid.scrollLeft;carouselPaused=true;pauseButton.textContent='\u25b6';pauseButton.setAttribute('aria-label','Resume automatic sliding');pauseButton.setAttribute('aria-pressed','true')},{passive:true});
-grid.addEventListener('touchcancel',function(){carouselTouch=false},{passive:true});
-document.getElementById('portfolio-prev').addEventListener('click',function(){carouselMove(carouselIndex()-1)});
-document.getElementById('portfolio-next').addEventListener('click',function(){carouselMove(carouselIndex()+1)});
+// Match the homepage's pointer drag and gentle hover deceleration.
+var pointerStart=0,pointerPosition=0,pointerDown=false,pointerId=null;
+grid.addEventListener('pointerenter',function(e){if(e.pointerType==='mouse')carouselHover=true});
+grid.addEventListener('pointerleave',function(){carouselHover=false});
+grid.addEventListener('pointerdown',function(e){
+  if(!carouselLoop||e.button!==0)return;
+  pointerDown=true;pointerId=e.pointerId;carouselMoved=false;pointerStart=e.clientX;pointerPosition=carouselPosition;
+});
+window.addEventListener('pointermove',function(e){
+  if(!pointerDown||e.pointerId!==pointerId)return;
+  var dx=e.clientX-pointerStart;
+  if(Math.abs(dx)>6&&!carouselTouch){carouselTouch=true;carouselMoved=true;carouselTarget=null;grid.classList.add('is-dragging');grid.setPointerCapture(e.pointerId)}
+  if(carouselTouch){carouselPosition=pointerPosition-dx;carouselVelocity=0;paintCarousel()}
+});
+function finishCarouselDrag(e){
+  if(!pointerDown||e.pointerId!==pointerId)return;
+  pointerDown=false;carouselTouch=false;grid.classList.remove('is-dragging');
+  if(grid.hasPointerCapture(e.pointerId))grid.releasePointerCapture(e.pointerId);
+  normalizeCarousel();paintCarousel();
+  setTimeout(function(){carouselMoved=false},0);
+}
+window.addEventListener('pointerup',finishCarouselDrag);
+window.addEventListener('pointercancel',finishCarouselDrag);
+grid.addEventListener('dragstart',function(e){e.preventDefault()});
+function nudgeCarousel(direction){
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){carouselMove(carouselIndex()+direction);return}
+  carouselTarget=null;carouselVelocity+=direction*800;
+}
+document.getElementById('portfolio-prev').addEventListener('click',function(){nudgeCarousel(-1)});
+document.getElementById('portfolio-next').addEventListener('click',function(){nudgeCarousel(1)});
 pauseButton.addEventListener('click',function(){carouselPaused=!carouselPaused;pauseButton.textContent=carouselPaused?'\u25b6':'\u275a\u275a';pauseButton.setAttribute('aria-label',carouselPaused?'Resume automatic sliding':'Pause automatic sliding');pauseButton.setAttribute('aria-pressed',String(carouselPaused))});
-window.addEventListener('resize',function(){controls.hidden=!carouselLoop;carouselTarget=null;carouselPosition=grid.scrollLeft;normalizeCarousel();syncCarousel();fitPortfolio()});
-
+var carouselResizeTimer=0,carouselWidth=grid.clientWidth;
+window.addEventListener('resize',function(){
+  if(grid.clientWidth===carouselWidth)return;
+  carouselWidth=grid.clientWidth;clearTimeout(carouselResizeTimer);
+  carouselResizeTimer=setTimeout(setupCarousel,150);
+});
 
 // Size cards from the actual header/filter heights, including wrapped filters.
 function fitPortfolio(){
   var header=document.querySelector('.pg'),section=document.querySelector('main>section');
   var controls=document.getElementById('portfolio-controls');
-  if(!header||!section||!grid.children.length)return;
+  if(!header||!section||!track.children.length)return;
   var headerHeight=header.getBoundingClientRect().height;
   document.documentElement.style.setProperty('--portfolio-header-height',headerHeight+'px');
   var sectionStyle=getComputedStyle(section),gridStyle=getComputedStyle(grid);
