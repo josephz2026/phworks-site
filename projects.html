@@ -338,20 +338,59 @@ function render(){
 var carouselTimer=null,carouselPaused=false,carouselHover=false,carouselTouch=false;
 var controls=document.getElementById('portfolio-controls'),dots=document.getElementById('portfolio-dots');
 var pauseButton=document.getElementById('portfolio-pause');
-function carouselIndex(){var cards=grid.children;if(!cards.length)return 0;var step=cards[0].getBoundingClientRect().width+parseFloat(getComputedStyle(grid).gap);return Math.round(grid.scrollLeft/step)}
-function carouselMove(index){var cards=grid.children;if(!cards.length)return;var step=cards[0].getBoundingClientRect().width+parseFloat(getComputedStyle(grid).gap);grid.scrollTo({left:Math.max(0,index)*step,behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'})}
-function syncCarousel(){var max=grid.scrollWidth-grid.clientWidth;var index=carouselIndex();dots.querySelectorAll('button').forEach(function(b,i){b.setAttribute('aria-current',String(i===index))});document.getElementById('portfolio-prev').disabled=grid.scrollLeft<2;document.getElementById('portfolio-next').disabled=grid.scrollLeft>=max-2;}
+var carouselCount=0,carouselLoop=false,carouselSettle=null;
+function carouselStep(){return grid.children.length?grid.children[0].getBoundingClientRect().width+parseFloat(getComputedStyle(grid).gap):1}
+function carouselIndex(){return Math.round(grid.scrollLeft/carouselStep())-(carouselLoop?carouselCount:0)}
+function carouselMove(index){
+  if(!carouselCount)return;
+  var physical=index+(carouselLoop?carouselCount:0);
+  grid.scrollTo({left:physical*carouselStep(),behavior:window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth'});
+}
+function normalizeCarousel(){
+  if(!carouselLoop||carouselTouch)return;
+  var step=carouselStep(),position=grid.scrollLeft/step;
+  if(position<carouselCount||position>=carouselCount*2){
+    var normalized=((position-carouselCount)%carouselCount+carouselCount)%carouselCount+carouselCount;
+    // Identical neighbouring copies keep the picture still during this invisible reset.
+    grid.scrollTo({left:normalized*step,behavior:'instant'});
+  }
+}
+function syncCarousel(){
+  var index=carouselCount?((carouselIndex()%carouselCount)+carouselCount)%carouselCount:0;
+  dots.querySelectorAll('button').forEach(function(b,i){b.setAttribute('aria-current',String(i===index))});
+  document.getElementById('portfolio-prev').disabled=!carouselLoop;
+  document.getElementById('portfolio-next').disabled=!carouselLoop;
+}
 function setupCarousel(){
-  clearInterval(carouselTimer);dots.innerHTML='';
-  Array.from(grid.children).forEach(function(card,i){var d=el('button');d.type='button';d.setAttribute('aria-label','Go to '+card.querySelector('.nm').textContent);d.addEventListener('click',function(){carouselMove(i)});dots.appendChild(d)});
-  requestAnimationFrame(function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel();fitPortfolio()});
+  clearInterval(carouselTimer);clearTimeout(carouselSettle);dots.innerHTML='';
+  var originals=Array.from(grid.children);carouselCount=originals.length;carouselLoop=false;
+  originals.forEach(function(card,i){var d=el('button');d.type='button';d.setAttribute('aria-label','Go to '+card.querySelector('.nm').textContent);d.addEventListener('click',function(){carouselMove(i)});dots.appendChild(d)});
+  requestAnimationFrame(function(){
+    carouselLoop=carouselCount>1&&grid.scrollWidth>grid.clientWidth+2;
+    if(carouselLoop){
+      function copy(card){
+        var clone=card.cloneNode(true);clone.classList.remove('is-revealed');clone.tabIndex=-1;clone.setAttribute('aria-hidden','true');
+        clone.addEventListener('click',function(e){
+          if(e.detail!==0&&!window.matchMedia('(hover: hover) and (pointer: fine)').matches&&!clone.classList.contains('is-revealed')){
+            grid.querySelectorAll('.is-revealed').forEach(function(c){c.classList.remove('is-revealed')});clone.classList.add('is-revealed');return;
+          }
+          card.dispatchEvent(new MouseEvent('click',{bubbles:true,detail:0}));
+        });return clone;
+      }
+      var before=document.createDocumentFragment(),after=document.createDocumentFragment();
+      originals.forEach(function(card){before.appendChild(copy(card));after.appendChild(copy(card))});
+      grid.insertBefore(before,grid.firstChild);grid.appendChild(after);
+      grid.scrollTo({left:carouselCount*carouselStep(),behavior:'instant'});
+    }
+    controls.hidden=!carouselLoop;syncCarousel();fitPortfolio();
+  });
   carouselTimer=setInterval(function(){
-    if(carouselPaused||carouselHover||carouselTouch||document.hidden||lb.classList.contains('on')||grid.contains(document.activeElement)||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
+    if(carouselPaused||carouselHover||carouselTouch||!carouselLoop||document.hidden||lb.classList.contains('on')||grid.contains(document.activeElement)||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     if(grid.getBoundingClientRect().bottom<0||grid.getBoundingClientRect().top>innerHeight)return;
-    carouselMove(grid.scrollLeft>=grid.scrollWidth-grid.clientWidth-2?0:carouselIndex()+1);
+    normalizeCarousel();carouselMove(carouselIndex()+1);
   },4200);
 }
-grid.addEventListener('scroll',syncCarousel,{passive:true});
+grid.addEventListener('scroll',function(){syncCarousel();clearTimeout(carouselSettle);carouselSettle=setTimeout(normalizeCarousel,180)},{passive:true});
 grid.addEventListener('mouseenter',function(){carouselHover=true});grid.addEventListener('mouseleave',function(){carouselHover=false});
 grid.addEventListener('touchstart',function(){carouselTouch=true},{passive:true});
 grid.addEventListener('touchend',function(){carouselTouch=false;carouselPaused=true;pauseButton.textContent='\u25b6';pauseButton.setAttribute('aria-label','Resume automatic sliding');pauseButton.setAttribute('aria-pressed','true')},{passive:true});
