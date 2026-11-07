@@ -212,6 +212,21 @@ button.proj.is-revealed .nm,button.proj:focus-visible .nm{transform:none}
 .pmsg{color:#c9d8e4}
 @media(max-width:600px){main>section{padding:32px 0 44px}.pgrid{gap:16px;padding-left:22px;padding-right:22px}button.proj{flex-basis:82vw;height:112vw;max-height:560px;border-radius:32px 0 0 0}button.proj .cap{padding:26px 22px}button.proj .nm{font-size:23px}.pg .top{padding-bottom:36px}}
 @media(prefers-reduced-motion:reduce){.pgrid{scroll-behavior:auto}button.proj img,button.proj .cap,button.proj .nm{transition:none}}
+
+/* Keep the portfolio centered within the first screen. */
+.pg header{padding:12px 0}
+.pg header .logo{height:62px}
+.pg .top{padding:12px 0 24px}
+.pg h1{font-size:clamp(32px,3.3vw,46px)}
+.pg .top p{font-size:16px;margin:8px auto 0;line-height:1.45}
+main>section{padding:20px 0 24px}
+.pfilters{margin-bottom:10px}
+.pgrid{margin-top:10px;padding-top:10px;padding-bottom:10px;align-items:center}
+button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-height,clamp(220px,calc(100svh - 350px),500px));border-radius:34px 0 0 0}
+.portfolio-controls{margin-top:14px;gap:16px}
+.portfolio-controls>button{width:36px;height:36px;font-size:17px}
+@media(min-width:900px){main{min-height:calc(100svh - var(--portfolio-header-height,190px));display:flex;align-items:center}main>section{width:100%}}
+@media(max-width:600px){.pg header .logo{height:54px}.pg .top{padding:8px 0 18px}.pg .top p{font-size:14px;max-width:32ch}.pfilters{gap:7px}.pfilters button{font-size:13px;padding:7px 12px}main>section{padding:14px 0 20px}button.proj{flex-basis:78vw;max-height:500px;border-radius:28px 0 0 0}.portfolio-controls{gap:12px}.portfolio-dots{gap:7px}}
 </style>
 </head>
 <body>
@@ -320,7 +335,7 @@ function syncCarousel(){var max=grid.scrollWidth-grid.clientWidth;var index=caro
 function setupCarousel(){
   clearInterval(carouselTimer);dots.innerHTML='';
   Array.from(grid.children).forEach(function(card,i){var d=el('button');d.type='button';d.setAttribute('aria-label','Go to '+card.querySelector('.nm').textContent);d.addEventListener('click',function(){carouselMove(i)});dots.appendChild(d)});
-  requestAnimationFrame(function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel()});
+  requestAnimationFrame(function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel();fitPortfolio()});
   carouselTimer=setInterval(function(){
     if(carouselPaused||carouselHover||carouselTouch||document.hidden||lb.classList.contains('on')||grid.contains(document.activeElement)||window.matchMedia('(prefers-reduced-motion: reduce)').matches)return;
     if(grid.getBoundingClientRect().bottom<0||grid.getBoundingClientRect().top>innerHeight)return;
@@ -335,7 +350,27 @@ grid.addEventListener('touchcancel',function(){carouselTouch=false},{passive:tru
 document.getElementById('portfolio-prev').addEventListener('click',function(){carouselMove(carouselIndex()-1)});
 document.getElementById('portfolio-next').addEventListener('click',function(){carouselMove(carouselIndex()+1)});
 pauseButton.addEventListener('click',function(){carouselPaused=!carouselPaused;pauseButton.textContent=carouselPaused?'\u25b6':'\u275a\u275a';pauseButton.setAttribute('aria-label',carouselPaused?'Resume automatic sliding':'Pause automatic sliding');pauseButton.setAttribute('aria-pressed',String(carouselPaused))});
-window.addEventListener('resize',function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel()});
+window.addEventListener('resize',function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel();fitPortfolio()});
+
+
+// Size cards from the actual header/filter heights, including wrapped filters.
+function fitPortfolio(){
+  var header=document.querySelector('.pg'),section=document.querySelector('main>section');
+  var controls=document.getElementById('portfolio-controls');
+  if(!header||!section||!grid.children.length)return;
+  var headerHeight=header.getBoundingClientRect().height;
+  document.documentElement.style.setProperty('--portfolio-header-height',headerHeight+'px');
+  var sectionStyle=getComputedStyle(section),gridStyle=getComputedStyle(grid);
+  var filterHeight=[catBox,subBox].reduce(function(total,node){var style=getComputedStyle(node);return total+node.getBoundingClientRect().height+parseFloat(style.marginTop||0)+parseFloat(style.marginBottom||0)},0);
+  var controlHeight=controls.hidden?0:controls.getBoundingClientRect().height+parseFloat(getComputedStyle(controls).marginTop||0);
+  var padding=parseFloat(sectionStyle.paddingTop)+parseFloat(sectionStyle.paddingBottom)+parseFloat(gridStyle.paddingTop)+parseFloat(gridStyle.paddingBottom)+parseFloat(gridStyle.marginTop);
+  var available=document.documentElement.clientHeight-headerHeight-filterHeight-controlHeight-padding-12;
+  document.documentElement.style.setProperty('--portfolio-card-height',Math.max(160,Math.min(500,available))+'px');
+}
+var portfolioResize=new ResizeObserver(function(){requestAnimationFrame(fitPortfolio)});
+[document.querySelector('.pg'),catBox,subBox,document.getElementById('portfolio-controls')].forEach(function(node){portfolioResize.observe(node)});
+window.addEventListener('resize',fitPortfolio);
+if(document.fonts)document.fonts.ready.then(fitPortfolio);
 
 var cur=null,idx=0;
 var CH_L='<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>';
