@@ -227,6 +227,15 @@ button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-heigh
 .portfolio-controls>button{width:36px;height:36px;font-size:17px}
 @media(min-width:900px){main{min-height:calc(100svh - var(--portfolio-header-height,190px));display:flex;align-items:center}main>section{width:100%}}
 @media(max-width:600px){.pg header .logo{height:54px}.pg .top{padding:8px 0 18px}.pg .top p{font-size:14px;max-width:32ch}.pfilters{gap:7px}.pfilters button{font-size:13px;padding:7px 12px}main>section{padding:14px 0 20px}button.proj{flex-basis:78vw;max-height:500px;border-radius:28px 0 0 0}.portfolio-controls{gap:12px}.portfolio-dots{gap:7px}}
+
+/* Center each mobile card, including the first and last, with equal side peeks. */
+#pcats{margin-top:20px}
+@media(max-width:600px){
+  .pgrid{padding-left:11vw;padding-right:11vw;scroll-padding-inline:11vw}
+  button.proj{scroll-snap-align:center}
+  #pcats{margin-top:18px}
+  .portfolio-controls{margin-left:16px;margin-right:16px}
+}
 </style>
 </head>
 <body>
@@ -248,8 +257,6 @@ button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-heigh
 </div>
 </div></div>
 <main><section><div class="wrap">
-<div class="pfilters" id="pcats" role="group" aria-label="Project category"></div>
-<div class="pfilters sub" id="psubs" role="group" aria-label="Project type"></div>
 <div class="pgrid" id="pgrid" role="region" aria-label="Project carousel"></div>
 <div class="portfolio-controls" id="portfolio-controls" hidden>
 <button type="button" id="portfolio-prev" aria-label="Previous projects">&#8592;</button>
@@ -257,6 +264,8 @@ button.proj{flex-basis:clamp(260px,22vw,365px);height:var(--portfolio-card-heigh
 <button type="button" id="portfolio-next" aria-label="Next projects">&#8594;</button>
 <button type="button" id="portfolio-pause" aria-label="Pause automatic sliding" aria-pressed="false">&#10074;&#10074;</button>
 </div>
+<div class="pfilters" id="pcats" role="group" aria-label="Project category"></div>
+<div class="pfilters sub" id="psubs" role="group" aria-label="Project type"></div>
 <p class="pmsg" id="pmsg">Loading projects...</p>
 <noscript><p class="pmsg">Please turn on JavaScript to see our projects, or call us at <a href="tel:+17184141083">(718) 414-1083</a>.</p></noscript>
 </div></section></main>
@@ -350,7 +359,7 @@ grid.addEventListener('touchcancel',function(){carouselTouch=false},{passive:tru
 document.getElementById('portfolio-prev').addEventListener('click',function(){carouselMove(carouselIndex()-1)});
 document.getElementById('portfolio-next').addEventListener('click',function(){carouselMove(carouselIndex()+1)});
 pauseButton.addEventListener('click',function(){carouselPaused=!carouselPaused;pauseButton.textContent=carouselPaused?'\u25b6':'\u275a\u275a';pauseButton.setAttribute('aria-label',carouselPaused?'Resume automatic sliding':'Pause automatic sliding');pauseButton.setAttribute('aria-pressed',String(carouselPaused))});
-window.addEventListener('resize',function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel();fitPortfolio()});
+window.addEventListener('resize',function(){controls.hidden=grid.scrollWidth<=grid.clientWidth+2;syncCarousel();fitPortfolio();carouselMove(carouselIndex())});
 
 
 // Size cards from the actual header/filter heights, including wrapped filters.
