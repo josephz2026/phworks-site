@@ -169,8 +169,8 @@ button.proj .cap,button.proj .nm,button.proj .ct{text-align:center}
 #lb h2{font-size:clamp(26px,5vw,38px);margin:0 0 6px}
 #lb .meta{color:#9db0be;font-size:15px;margin:0 0 10px}
 #lb .desc{white-space:pre-line;margin:0 auto 18px;max-width:640px;color:#d3dee7}
-#lb .stage{position:relative;display:flex;align-items:center;justify-content:center;min-height:180px;touch-action:pan-y}
-#lb .stage img{display:block;margin:0 auto;max-width:100%;max-height:62vh;width:auto;height:auto;border-radius:10px;background:#0c2234}
+#lb .stage{position:relative;display:flex;align-items:center;justify-content:center;height:clamp(160px,calc(100svh - 210px),720px);min-height:160px;touch-action:pan-y}
+#lb .stage img{display:block;margin:0 auto;width:100%;height:100%;max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;background:transparent}
 #lb .nav{position:absolute;top:50%;transform:translateY(-50%);width:48px;height:48px;border:0;border-radius:50%;background:rgba(5,12,20,.72);color:#fff;cursor:pointer;display:grid;place-items:center;z-index:1}
 #lb .nav:hover{background:var(--flame)}
 #lb .nav.pv{left:8px}
@@ -510,9 +510,10 @@ function show(){
     st.addEventListener('touchend',function(e){if(sx===null)return;var dx=e.changedTouches[0].clientX-sx;sx=null;if(Math.abs(dx)>45)go(dx<0?1:-1)},{passive:true});
   }
   box.appendChild(st);
+  // Keep the counter in the same place even when captions or labels differ.
+  if(photos.length>1)box.appendChild(el('div','count',(idx+1)+' of '+photos.length));
   if(ph.label){var d=el('div');d.appendChild(el('span','tag',ph.label));box.appendChild(d)}
   if(ph.caption)box.appendChild(el('p','note',ph.caption));
-  if(photos.length>1)box.appendChild(el('div','count',(idx+1)+' of '+photos.length));
   // preload neighbours so the arrows feel instant
   [1,-1].forEach(function(o){var n=photos[(idx+o+photos.length)%photos.length];if(n){var pi=new Image();pi.src=n.url}});
 }
