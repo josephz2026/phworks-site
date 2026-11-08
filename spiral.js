@@ -13,6 +13,7 @@ var css=
 '@media(hover:hover){.sp-card:hover .sp-cap{opacity:1}}'+
 '.sp-card:focus-visible{outline:3px solid #ff8a4c;outline-offset:2px}'+
 '.sp-card:focus-visible .sp-cap{opacity:1}'+
+'.sp-card.on .sp-cap{opacity:1}'+
 '.sp-nm{font:700 20px/1.15 "Archivo",Arial,sans-serif}'+
 '.sp-sb{font-size:14px;color:#d3dee7;margin-top:4px}'+
 '.sp-go{margin-top:10px;font-weight:600;font-size:14px;color:#ff9a62}'+
@@ -39,6 +40,7 @@ function mount(host,items,o){
   o=o||{};host.innerHTML='';
   if(!items.length)return{destroy:function(){}};
   var reduce=window.matchMedia('(prefers-reduced-motion:reduce)').matches;
+  var touchOnly=window.matchMedia('(hover:none)');
   var track=el('div','sp-track'),pos=0,setW=0,speed=0,base=reduce?0:34,hover=false,drag=false,moved=false,raf=0,last=0;
   var bl=el('button','sp-btn l','\u2039'),br=el('button','sp-btn r','\u203a');
   bl.type=br.type='button';bl.setAttribute('aria-label','Previous');br.setAttribute('aria-label','Next');
@@ -53,6 +55,13 @@ function mount(host,items,o){
     cap.appendChild(el('span','sp-go','View project'));c.appendChild(cap);
     c.addEventListener('click',function(e){
       if(moved){e.preventDefault();return}
+      if(touchOnly.matches&&!c.classList.contains('on')){
+        /* touch: first tap shows the caption and View project, second tap opens it */
+        e.preventDefault();
+        var prev=track.querySelectorAll('.sp-card.on');
+        for(var k=0;k<prev.length;k++)prev[k].classList.remove('on');
+        c.classList.add('on');return;
+      }
       if(o.onOpen){e.preventDefault();o.onOpen(it)}
     });
     return c;
@@ -83,7 +92,7 @@ function mount(host,items,o){
   function pd(e){if(e.target.closest&&e.target.closest('.sp-btn'))return;down=true;moved=false;sx=e.clientX;sp0=pos}
   function pm(e){
     if(!down)return;var dx=e.clientX-sx;
-    if(Math.abs(dx)>6&&!drag){drag=true;moved=true;host.classList.add('drag')}
+    if(Math.abs(dx)>6&&!drag){drag=true;moved=true;host.classList.add('drag');var on=track.querySelectorAll('.sp-card.on');for(var k=0;k<on.length;k++)on[k].classList.remove('on')}
     if(drag){pos=sp0-dx;speed=0}
   }
   function pu(){if(!down)return;down=false;if(drag){drag=false;host.classList.remove('drag');setTimeout(function(){moved=false},0)}}
