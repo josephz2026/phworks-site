@@ -7,9 +7,9 @@
   --flame:#d14a05;--on:#f3f6f8;--link:#ff8a4c;
   --font-head:"Archivo","Arial Narrow",sans-serif;
   --font-body:"Hanken Grotesk",system-ui,sans-serif;
-  /* The logo is shown white on the dark header. If the new logo already
-     looks right without it, change this to: none */
-  --logo-filter:invert(1);
+  /* images/email-logo.png is now a white logo on a transparent background,
+     so no filter is needed. */
+  --logo-filter:none;
   box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:dark}
 html{scroll-padding-top:env(safe-area-inset-top,0px);scroll-behavior:smooth}
 *,*::before,*::after{box-sizing:inherit}
@@ -29,7 +29,7 @@ h2.sec{font-size:clamp(32px,5vw,54px);margin-bottom:14px}
 
 /* header + navigation (same on every page) */
 header{position:relative;display:flex;align-items:center;justify-content:space-between;padding:16px 0}
-header .logo{height:76px;width:auto;filter:var(--logo-filter);mix-blend-mode:screen}
+header .logo{height:92px;width:auto;filter:var(--logo-filter)}
 nav{display:none}
 nav a,.menu{color:#fff;font:600 15px var(--font-body);text-decoration:none;padding:10px 20px;border-radius:999px;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.06));border:1.5px solid rgba(255,255,255,.5);-webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.1),0 4px 14px rgba(0,0,0,.25)}
 .menu{cursor:pointer}
