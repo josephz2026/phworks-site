@@ -34,12 +34,12 @@
 
 <div class="row"><label>Name<input name="n" required autocomplete="name"></label><label>Company<input name="c" autocomplete="organization"></label></div>
 <div class="row"><label>Phone<input name="p" required autocomplete="tel" type="tel"></label><label>Email<input name="email" required type="email" autocomplete="email"></label></div>
-<div class="row"><label>You are a<select name="r"><option>Developer</option><option>General contractor</option><option>Owner</option><option>Architect or engineer</option><option>Other</option></select></label>
-<label>Project type<select name="t"><option>New ground-up multi-family</option><option>Renovation</option><option>New custom housing</option><option>Something else</option></select></label></div>
-<div class="row"><label>Project address<input name="a" ></label><label>Borough<select name="b"><option>Brooklyn</option><option>Manhattan</option><option>Queens</option><option>Bronx</option><option>Staten Island</option></select></label></div>
-<div class="row"><label>Size (units, floors, or square feet)<input name="z" ></label><label>Bid due date or start timeline<input name="w" ></label></div>
-<label>Link to plans (Dropbox, Drive, etc.)<input name="l" type="url" placeholder="Optional. You can also attach plans in the email."></label>
-<label>Scope and details<textarea name="d" placeholder="Fixtures, gas, boiler or hot water scope, anything that affects the price."></textarea></label>
+<div class="row"><label>You are a<select name="r" required><option value="" disabled selected hidden>Select one</option><option>Developer</option><option>General contractor</option><option>Owner</option><option>Architect or engineer</option><option>Other</option></select></label>
+<label>Project type<select name="t" required><option value="" disabled selected hidden>Select one</option><option>New ground-up multi-family</option><option>Renovation</option><option>New custom housing</option><option>Something else</option></select></label></div>
+<div class="row"><label>Project address<input name="a" ></label><label>Borough<select name="b"><option value="" disabled selected hidden>Select one</option><option>Brooklyn</option><option>Manhattan</option><option>Queens</option><option>Bronx</option><option>Staten Island</option></select></label></div>
+<div class="row"><label>Size (units, floors, or square feet)<input name="z" ></label><label>Bid due date<input name="w" type="date" id="bd"></label></div>
+<label>Link to plans (Dropbox, Drive, etc.)<input name="l" type="url" placeholder="Optional. Dropbox, Drive, or any shared link."></label>
+<label>Scope and details<textarea name="d" placeholder="Fixtures, gas, boiler or hot water scope, start timeline, anything that affects the price."></textarea></label>
 <label class="agree"><input type="checkbox" name="agreed_to_terms_and_privacy" value="Yes" required><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and acknowledge the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
 <button class="btn" type="submit" id="sb">Send request</button>
 <p class="note">For large plan sets, paste a link above or email them to info@phworksinc.com.</p>
@@ -52,11 +52,12 @@ var mb=document.getElementById('mb'),nv=document.getElementById('nv');
 mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
 nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
 var f=document.getElementById('q');
+var bd=document.getElementById('bd'),t=new Date();bd.min=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
 PHSubmit({form:f,type:'quote',build:function(f){return {
  name:f.elements.n.value, phone:f.elements.p.value, email:f.elements.email.value, message:f.elements.d.value,
  'Company':f.elements.c.value, 'You are a':f.elements.r.value, 'Project type':f.elements.t.value,
  'Project address':f.elements.a.value, 'Borough':f.elements.b.value, 'Size':f.elements.z.value,
- 'Bid due date or timeline':f.elements.w.value, 'Plans link':f.elements.l.value,
+ 'Bid due date':f.elements.w.value, 'Plans link':f.elements.l.value,
  'Agreed to Terms and Privacy':'Yes'}}});
 </script>
 </body>
