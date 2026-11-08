@@ -107,6 +107,15 @@ footer{padding:26px 0 96px;color:var(--muted);font-size:14px}
 .row{display:grid;gap:14px;grid-template-columns:1fr}
 @media(min-width:640px){.row{grid-template-columns:1fr 1fr}}
 .note{color:var(--muted);font-size:14px;margin:0}
+.photos{position:relative;display:grid;gap:6px}
+.plabel{font-weight:600;font-size:15px}
+input.vh{position:absolute;width:1px;height:1px;padding:0;border:0;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+.pick{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.pickbtn{display:inline-block;background:#fff;color:#0e2030;border-radius:10px;padding:12px 20px;font-weight:600;font-size:15px;cursor:pointer}
+.pickbtn:hover{background:#e9eff3}
+input.vh:focus-visible+.pick .pickbtn{outline:3px solid #ff8a4c;outline-offset:3px}
+#ps{color:var(--muted);font-size:15px}
+.pics{list-style:none;margin:0;padding:0;display:grid;gap:8px}.pics:empty{display:none}.pics li{display:flex;justify-content:space-between;align-items:center;gap:12px;border:1px solid var(--line);border-radius:10px;padding:8px 12px;font-size:14px}.pics span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pics button{flex:none;background:none;border:0;padding:4px;color:var(--flame);font:inherit;font-size:14px;font-weight:600;text-decoration:underline;cursor:pointer}
 input,select,textarea{border-color:var(--line)}
 
 footer{text-align:center}
@@ -178,13 +187,16 @@ label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 <form id="q" method="post">
 <div style="position:absolute;left:-9999px" aria-hidden="true"><input type="text" name="website" tabindex="-1" autocomplete="off"></div>
 <div class="row"><label>First name<input name="fn" required autocomplete="given-name"></label><label>Last name<input name="ln" required autocomplete="family-name"></label></div>
-<div class="row"><label>Phone<input name="p" required autocomplete="tel" type="tel"></label><label>Email<input name="email" type="email" autocomplete="email"></label></div>
+<div class="row"><label>Phone<input name="p" required autocomplete="tel" type="tel"></label><label>Email<input name="email" required type="email" autocomplete="email"></label></div>
 <div class="row"><label>Service address<input name="a" required autocomplete="street-address"></label><label>Borough<select name="b" required><option value="" disabled selected>Select one</option><option>Brooklyn</option><option>Manhattan</option><option>Queens</option><option>Bronx</option><option>Staten Island</option></select></label></div>
 <div class="row"><label><span>Building type <span class="hint">(e.g. private home, apartment building, store front)</span></span><input name="bt" required></label><label>Point of contact for access<input name="poc"></label></div>
 <label>How soon?<select name="u" required><option value="" disabled selected>Select one</option><option>Within 24 to 48 hours</option><option>This week</option><option>Flexible</option></select></label>
 <label><span>Nature of the service needed <span class="hint">(please provide any relevant details)</span></span><textarea name="d" required></textarea></label>
-<label>Photos (optional)<input type="file" name="attachment" accept="image/*" multiple></label>
-<p class="note" id="pn">Attach up to 5 photos of the issue.</p>
+<div class="photos"><span class="plabel">Photos (optional)</span>
+<input type="file" id="ph" name="attachment" accept="image/*" multiple class="vh">
+<div class="pick"><label class="pickbtn" for="ph">Choose photos</label><span id="ps">Please choose a photo</span></div></div>
+<p class="note" id="pn">Attach up to 5 photos of the issue. You can add them one at a time or pick several at once.</p>
+<ul class="pics" id="pl"></ul>
 <label class="agree"><input type="checkbox" name="agreed_to_terms_and_privacy" value="Yes" required><span>I have read and agree to the <a href="terms.html" target="_blank" rel="noopener">Terms of Use</a> and acknowledge the <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>.</span></label>
 <button class="btn" type="submit" id="sb">Send request</button>
 
@@ -196,9 +208,11 @@ label.agree a{color:var(--flame);font-weight:600;text-decoration:underline}
 var mb=document.getElementById('mb'),nv=document.getElementById('nv');
 mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
 nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
-var f=document.getElementById('q'),fi=f.elements.attachment,pn=document.getElementById('pn');
-fi.addEventListener('change',function(){if(fi.files.length>5){pn.textContent='Please choose 5 photos or fewer.';fi.value=''}});
-PHSubmit({form:f,type:'service',files:function(){return Promise.all(Array.prototype.slice.call(fi.files,0,5).map(PHShrink))},build:function(f){
+var f=document.getElementById('q'),fi=f.elements.attachment,pn=document.getElementById('pn'),pl=document.getElementById('pl'),ps=document.getElementById('ps'),pics=[];
+var NOTE=pn.textContent;
+function draw(){ps.textContent=pics.length?pics.length+' of 5 photo'+(pics.length>1?'s':'')+' added':'Please choose a photo';pl.innerHTML='';pics.forEach(function(file,i){var li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');sp.textContent=file.name;b.type='button';b.textContent='Remove';b.setAttribute('aria-label','Remove '+file.name);b.addEventListener('click',function(){pics.splice(i,1);pn.textContent=NOTE;draw()});li.appendChild(sp);li.appendChild(b);pl.appendChild(li)})}
+fi.addEventListener('change',function(){var added=Array.prototype.slice.call(fi.files),over=false;added.forEach(function(x){if(pics.some(function(y){return y.name===x.name&&y.size===x.size&&y.lastModified===x.lastModified}))return;if(pics.length>=5){over=true;return}pics.push(x)});fi.value='';pn.textContent=over?'Only 5 photos can be attached. The extra ones were not added.':NOTE;draw()});
+PHSubmit({form:f,type:'service',files:function(){return Promise.all(pics.slice(0,5).map(PHShrink))},build:function(f){
  return {
  name:f.elements.fn.value+' '+f.elements.ln.value, 'First name':f.elements.fn.value, 'Last name':f.elements.ln.value, phone:f.elements.p.value, email:f.elements.email.value, message:f.elements.d.value,
  'Service address':f.elements.a.value, 'Borough':f.elements.b.value, 'Building type':f.elements.bt.value, 'Point of contact for access':f.elements.poc.value,
