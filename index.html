@@ -136,6 +136,20 @@ nav a:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}}
 .svc{border-top:4px solid var(--flame);background:var(--bg);padding:22px 4px 8px 0}
 .svc h3{font-size:24px;margin-bottom:8px}
 .svc p{margin:0;color:var(--muted)}
+
+.trust{background:#fff;color:#0e2030;border-bottom:1px solid var(--line)}
+.trust .wrap{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px 18px;padding-top:16px;padding-bottom:16px;font:600 16px/1.3 "Hanken Grotesk",sans-serif}
+.trust .lmp{display:inline-flex;align-items:center;gap:8px;color:#0c2234;text-decoration:none}
+.trust .lmp svg{width:18px;height:18px;flex:none;color:var(--flame)}
+.trust .lmp b{font-weight:700}
+.trust .lmp em{font-style:normal;font-weight:500;color:var(--flame);text-decoration:underline;text-underline-offset:3px}
+.trust .lmp:hover em{color:#b43f04}
+.trust .dot{display:inline-flex;align-items:center;gap:18px}
+.trust .dot:before{content:"";width:5px;height:5px;background:var(--flame);flex:none}
+.trust .boros{font-weight:500;color:#33495a}
+@media(max-width:640px){.trust .wrap{justify-content:flex-start;font-size:15px}}
+footer.ft .lic a{color:inherit;text-decoration:underline;text-underline-offset:3px}
+footer.ft .lic a:hover{color:#fff}
 </style>
 </head>
 <body>
@@ -159,6 +173,11 @@ nav a:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}}
 </div>
 </div>
 </div>
+<div class="trust"><div class="wrap">
+<a class="lmp" href="https://a810-bisweb.nyc.gov/bisweb/LicenseQueryServlet?licno=2436&amp;licensetype=P&amp;go3=+GO+&amp;requestid=0" target="_blank" rel="noopener" aria-label="NYC LMP number 2436, verify on the NYC Department of Buildings site (opens in a new tab)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg><b>NYC LMP #2436</b><em>(verify ↗)</em></a>
+<span class="dot">Licensed &amp; Insured</span>
+<span class="dot boros">Bronx, Brooklyn, Manhattan, Queens, Staten Island</span>
+</div></div>
 
 <main>
 <div class="split" id="service">
@@ -217,7 +236,7 @@ nav a:hover{background:rgba(255,255,255,.1);transform:translateY(-1px)}}
 
 <footer class="ft" id="contact"><div class="wrap">
 <div class="cols">
-<div><h4>P.H. WORKS INC.</h4><p class="lic">Menachem Cohen<br>NYC LMP #2436<br>388 East 198th Street, Bronx, NY 10458</p></div>
+<div><h4>P.H. WORKS INC.</h4><p class="lic">Menachem Cohen<br>NYC LMP #2436 (<a href="https://a810-bisweb.nyc.gov/bisweb/LicenseQueryServlet?licno=2436&amp;licensetype=P&amp;go3=+GO+&amp;requestid=0" target="_blank" rel="noopener">verify ↗</a>)<br>388 East 198th Street, Bronx, NY 10458</p></div>
 <div><h4>Services</h4><ul><li><a href="request-service.html">Request service</a></li><li><a href="request-estimate.html">Get a construction quote</a></li></ul></div>
 <div><h4>Company</h4><ul><li><a href="projects.html">Projects</a></li><li><a href="apply.html">Careers</a></li></ul></div>
 <div><h4>Legal</h4><ul><li><a href="terms.html">Terms of Use</a></li><li><a href="privacy.html">Privacy Policy</a></li></ul></div>
