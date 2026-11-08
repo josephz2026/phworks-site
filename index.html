@@ -8,6 +8,21 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Archivo:wght@600;700;800&family=Hanken+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
+<style>
+.about .lead{max-width:62ch}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);gap:0;margin:34px 0 0;max-width:720px}
+.facts div{padding:6px 20px;border-left:1px solid var(--line)}
+.facts div:first-child{padding-left:0;border-left:0}
+.facts b{display:block;font:800 clamp(30px,5vw,48px)/1 var(--font-head);letter-spacing:-.02em;color:#fff}
+.facts span{display:block;margin-top:8px;color:var(--muted);font-size:15px}
+footer.ft .bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:16px}
+.soc{display:flex;align-items:center;gap:12px}
+.soc span{font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#8ea3b3;margin-right:2px}
+.soc a{width:44px;height:44px;border-radius:50%;display:grid;place-items:center;color:#dbe6ee;border:1.5px solid rgba(255,255,255,.28);background:linear-gradient(135deg,rgba(255,255,255,.12),rgba(255,255,255,.03));transition:transform .2s,background .2s,border-color .2s,color .2s}
+.soc a:hover,.soc a:focus-visible{background:var(--flame);border-color:var(--flame);color:#fff;transform:translateY(-3px)}
+.soc svg{width:20px;height:20px}
+@media(max-width:520px){.facts div{padding:6px 12px}.facts span{font-size:14px}}
+</style>
 </head>
 <body>
 <div class="hero" id="top">
@@ -80,6 +95,12 @@
 <div><h3>Emergency calls</h3><p>Call us when something breaks.</p></div>
 </div></section>
 
+<section class="about" style="padding-top:0"><div class="wrap">
+<h2 class="sec">About us</h2>
+<p class="lead">P.H. Works is a team of plumbers and administrators serving all five boroughs. We cover everything from day-to-day service and maintenance to plumbing for ground-up buildings. We keep communication open with every client, so everyone is on the same page from start to finish.</p>
+<div class="facts"><div><b>2012</b><span>Founded</span></div><div><b>10+</b><span>Years of experience</span></div><div><b>5</b><span>Boroughs served</span></div></div>
+</div></section>
+
 <div class="band"><section><div class="wrap">
 <h2 class="sec">Need a plumbing sub?</h2>
 <p>We work with developers and general contractors on multi-family, renovation, and custom homes. Send us the plans and we will get you a price.</p>
@@ -99,7 +120,11 @@
 <div><h4>Legal</h4><ul><li><a href="terms.html">Terms of Use</a></li><li><a href="privacy.html">Privacy Policy</a></li></ul></div>
 <div><h4>Contact</h4><ul><li><a href="tel:+17184141083">(718) 414-1083</a></li><li>Serving all five boroughs</li></ul></div>
 </div>
-<div class="bar">&copy; P.H. Works Inc. Licensed and insured.</div>
+<div class="bar"><span>&copy; P.H. Works Inc. Licensed and insured.</span>
+<div class="soc"><span>Follow</span>
+<a href="https://www.linkedin.com/company/p-h-works-inc" target="_blank" rel="noopener" aria-label="P.H. Works Inc on LinkedIn (opens in a new tab)"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9.75h4V21H3zM9.5 9.75h3.8v1.6h.06c.53-1 1.82-2.05 3.75-2.05 4 0 4.74 2.64 4.74 6.07V21h-4v-5.1c0-1.22-.02-2.78-1.7-2.78-1.7 0-1.96 1.33-1.96 2.69V21h-4z"/></svg></a>
+<a href="https://www.instagram.com/plumbingjourney?srtk=MTNrYnRlcWkzbjA4MA==" target="_blank" rel="noopener" aria-label="P.H. Works Inc on Instagram (opens in a new tab)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/></svg></a>
+</div></div>
 </div></footer>
 
 
