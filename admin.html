@@ -54,6 +54,12 @@
   .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
   .thumb { display:grid; gap:6px; }
   .thumb img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+  /* Photo toggles: cover (Projects page) and Home (index spiral) */
+  .ph { position:relative; }
+  .thumb .tg { position:absolute; top:6px; min-height:32px; padding:4px 9px; font-size:.78rem; font-weight:600; line-height:1; border-radius:99px; border:1px solid rgba(255,255,255,.55); background:rgba(15,23,32,.72); color:#fff; cursor:pointer; }
+  .thumb .tg.cvr { left:6px; } .thumb .tg.hom { right:6px; }
+  .thumb .tg[aria-pressed="true"] { background:#d14a05; border-color:#d14a05; }
+  .thumb .tg:disabled { opacity:.6; cursor:wait; }
   .chk { display:flex; align-items:center; gap:8px; }
   .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
   .date.err { color:#b91c1c; }
@@ -464,7 +470,40 @@ function thumb(pic, onGone) {
     t.remove(); onGone(pic);
   }}, 'Delete');
   const img = el('img', { src:pubUrl(pic.path), alt:'', loading:'lazy', title:'Drag to change the order' });
-  const t = el('div', { class:'thumb' }, img, caption, captionMsg, k, del);
+
+  // Cover: the picture shown on this project's card on the Projects page. Only one per project.
+  const cvr = el('button', { type:'button', class:'tg cvr', 'aria-pressed':String(!!pic.is_cover), title:"Use as this project's cover on the Projects page" }, '\u2605 Cover');
+  cvr.addEventListener('click', async () => {
+    const turnOn = cvr.getAttribute('aria-pressed') !== 'true';
+    const all = [...t.parentElement.querySelectorAll('.cvr')];
+    all.forEach(b => b.disabled = true);
+    try {
+      // clear the old cover first, then set the new one
+      let r = await sb.from('project_photos').update({ is_cover:false }).eq('project_id', pic.project_id).eq('is_cover', true);
+      if (r.error) throw r.error;
+      if (turnOn) {
+        r = await sb.from('project_photos').update({ is_cover:true }).eq('id', pic.id);
+        if (r.error) throw r.error;
+      }
+      all.forEach(b => b.setAttribute('aria-pressed', String(turnOn && b === cvr)));
+    } catch(e) { alert('Could not change cover: ' + e.message); }
+    finally { all.forEach(b => b.disabled = false); }
+  });
+
+  // Home: show this picture in the moving gallery on the home page. Pick as many as you want.
+  const hom = el('button', { type:'button', class:'tg hom', 'aria-pressed':String(!!pic.in_spiral), title:'Show this picture in the home page gallery' }, '\u2302 Home');
+  hom.addEventListener('click', async () => {
+    const turnOn = hom.getAttribute('aria-pressed') !== 'true';
+    hom.disabled = true;
+    try {
+      const { error } = await sb.from('project_photos').update({ in_spiral:turnOn }).eq('id', pic.id);
+      if (error) throw error;
+      pic.in_spiral = turnOn; hom.setAttribute('aria-pressed', String(turnOn));
+    } catch(e) { alert('Could not change home gallery: ' + e.message); }
+    finally { hom.disabled = false; }
+  });
+
+  const t = el('div', { class:'thumb' }, el('div', { class:'ph' }, img, cvr, hom), caption, captionMsg, k, del);
   t.dataset.id = pic.id;
   makeDraggable(t, img);
   return t;

@@ -87,7 +87,7 @@ function render(){
     var photos=p.photos||[];
     var b=el('button','proj');b.type='button';
     var cov=el('span','cov');cov.style.display='block';
-    if(photos[0]){var im=document.createElement('img');im.src=photos[0].url;im.alt=p.title;im.loading='lazy';im.decoding='async';cov.appendChild(im)}
+    if(p.cover||photos[0]){var im=document.createElement('img');im.src=p.cover||photos[0].url;im.alt=p.title;im.loading='lazy';im.decoding='async';cov.appendChild(im)}
     var cap=el('span','cap');
     var meta=[p.category,p.subtype,p.size].filter(Boolean).join(' \u00b7 ');
     var n=photos.length+(photos.length===1?' photo':' photos');
@@ -360,6 +360,8 @@ fetch(PHW_SUPABASE_URL+'/rest/v1/projects?published=eq.true&order=created_at.des
     rows.sort(function(a,b){return (a.sort_order == null ? 2147483647 : a.sort_order) - (b.sort_order == null ? 2147483647 : b.sort_order)});
     all=rows.map(function(p){
       var pics=(p.project_photos||[]).slice().sort(function(a,b){return (a.sort_order == null ? 2147483647 : a.sort_order) - (b.sort_order == null ? 2147483647 : b.sort_order) || (a.created_at<b.created_at?-1:a.created_at>b.created_at?1:0)});
+      var cv=pics.filter(function(x){return x.is_cover})[0]||pics[0];
+      p.cover=cv?PHW_SUPABASE_URL+'/storage/v1/object/public/project-photos/'+cv.path:'';
       p.photos=pics.map(function(x){return{url:PHW_SUPABASE_URL+'/storage/v1/object/public/project-photos/'+x.path,label:x.kind==='before'?'Before':x.kind==='after'?'After':'',caption:x.caption||''}});
       return p});
     filters();render();openHash();window.addEventListener('hashchange',openHash)})
