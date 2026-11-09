@@ -66,6 +66,9 @@
   /* Service: message preview on the closed card */
   details.row summary .snip { flex-basis:100%; color:var(--muted); font-size:.9rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
   details[open] > summary .snip { display:none; }
+  details.row summary .when { margin-left:auto; }
+  details.row summary .meta { color:var(--muted); font-size:.9rem; }
+  .delrow { margin-top:12px; }
   /* Projects: drag to reorder */
   .grip { color:var(--muted); letter-spacing:-2px; user-select:none; }
   .dragsum { cursor:grab; }
@@ -220,14 +223,46 @@ function card(v, r) {
   moved.addEventListener('change', save);
   notes.addEventListener('blur', () => { if (notes.value !== (r.notes || '')) save(); });
   const heading = [el('strong', {}, r.name || '(no name)'), el('span', { class:'date' }, new Date(r.created_at).toLocaleString())];
+
+  // Delete: admin page only. Staff roles never see the button (and the database refuses them too).
+  const del = PAGE === 'admin' ? el('div', { class:'delrow' }, el('button', { class:'ghost', onclick: async (e) => {
+    const what = v.key === 'hr' ? 'application' : 'request';
+    if (!confirm(`Delete this ${what} from ${r.name || 'this person'}? This cannot be undone.`)) return;
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      const { data, error } = await sb.from('submissions').delete().eq('id', r.id).select('id');
+      if (error) throw error;
+      if (!data || !data.length) throw new Error('the database did not allow it (run the delete SQL first)');
+      const paths = (r.files || []).map(f => f.path).filter(Boolean);
+      if (paths.length) await sb.storage.from('uploads').remove(paths); // attachments, best effort
+      const host = node.parentElement; node.remove();
+      if (host && !host.children.length) host.append(el('p', { class:'msg' }, 'Nothing here yet.'));
+    } catch (err) { btn.disabled = false; alert('Could not delete: ' + err.message); }
+  }}, `Delete this ${v.key === 'hr' ? 'application' : 'request'}`)) : null;
+
+  // Looks in the form answers for a field whose name matches, so it works whatever the form calls it
+  const pick = (re) => { for (const [k, val] of Object.entries(r.extra || {})) if (re.test(k) && val) return String(val); return ''; };
+
+  let node;
   if (v.key === 'service') {
     const extra = r.extra || {};
     const service = extra.service || extra.Service || extra['Service type'] || extra['service_type'] || 'Service request';
     const preview = (r.message || '').replace(/\s+/g, ' ').trim();
-    return el('details', { class:'row' }, el('summary', {}, ...heading, el('span', {}, service), badge, preview ? el('span', { class:'snip' }, preview) : null),
-      el('div', { class:'edit' }, dl, files, el('label', { class:'chk' }, moved, 'Moved to Asana'), el('div', { class:'ctl' }, notes, saved)));
+    const boro = pick(/bor+o/i);
+    node = el('details', { class:'row' }, el('summary', {}, el('strong', {}, r.name || '(no name)'), el('span', {}, service), boro ? el('span', { class:'meta' }, boro) : null, badge, el('span', { class:'date when' }, new Date(r.created_at).toLocaleString()), preview ? el('span', { class:'snip' }, preview) : null),
+      el('div', { class:'edit' }, dl, files, el('label', { class:'chk' }, moved, 'Moved to Asana'), el('div', { class:'ctl' }, notes, saved), del));
+    return node;
   }
-  return el('div', { class:'row' }, el('div', { class:'top' }, ...heading), dl, files, el('div', { class:'ctl' }, notes, saved));
+
+  // Construction and Careers: collapsed list line, click to open
+  let bits;
+  if (v.key === 'hr') bits = [pick(/city|town/i), pick(/position|role|applying|job|title/i)];
+  else bits = [pick(/bor+o/i), pick(/project.*type|type.*(project|work|job)|^type$|^project$|scope/i)];
+  bits = bits.filter(Boolean);
+  node = el('details', { class:'row' },
+    el('summary', {}, el('strong', {}, r.name || '(no name)'), ...bits.map(b => el('span', { class:'meta' }, b)), el('span', { class:'date when' }, new Date(r.created_at).toLocaleString())),
+    el('div', { class:'edit' }, dl, files, el('div', { class:'ctl' }, notes, saved), del));
+  return node;
 }
 
 // Drag to reorder. Mouse: grab the handle (project header bar, or the photo) and drop it.
