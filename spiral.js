@@ -29,10 +29,24 @@ function projects(){
   return fetch(U+'/rest/v1/projects?published=eq.true&order=created_at.desc&select=*,project_photos(*)',{headers:{apikey:PHW_SUPABASE_KEY,Authorization:'Bearer '+PHW_SUPABASE_KEY}})
     .then(function(r){if(!r.ok)throw new Error(r.status);return r.json()})
     .then(function(rows){
-      return rows.map(function(p){
-        var pics=(p.project_photos||[]).slice().sort(function(a,b){return a.created_at<b.created_at?-1:1});
-        return{id:p.id,title:p.title,sub:[p.category,p.subtype].filter(Boolean).join(' \u00b7 '),img:pics[0]?U+'/storage/v1/object/public/project-photos/'+pics[0].path:''};
-      }).filter(function(i){return i.img});
+      var base=U+'/storage/v1/object/public/project-photos/';
+      var NIL=2147483647;
+      /* same order as the Projects page: your drag order, with undragged ones last */
+      rows.sort(function(a,b){return(a.sort_order==null?NIL:a.sort_order)-(b.sort_order==null?NIL:b.sort_order)});
+      var byTime=function(x,y){return(x.sort_order==null?NIL:x.sort_order)-(y.sort_order==null?NIL:y.sort_order)||(x.created_at<y.created_at?-1:x.created_at>y.created_at?1:0)};
+      /* Only photos ticked "Home" in the admin are used. If none are ticked anywhere yet, fall back to one photo (the cover) per project. */
+      var anyPicked=rows.some(function(p){return(p.project_photos||[]).some(function(x){return x.in_spiral})});
+      var out=[];
+      rows.forEach(function(p){
+        var pics=(p.project_photos||[]).slice().sort(byTime);
+        var chosen;
+        if(anyPicked)chosen=pics.filter(function(x){return x.in_spiral});
+        else{var c=pics.filter(function(x){return x.is_cover})[0]||pics[0];chosen=c?[c]:[]}
+        chosen.forEach(function(x){
+          out.push({id:p.id,title:p.title,sub:[p.category,p.subtype].filter(Boolean).join(' \u00b7 '),img:base+x.path});
+        });
+      });
+      return out;
     });
 }
 
