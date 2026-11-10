@@ -128,11 +128,7 @@ footer.ft .bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:sp
 </div></footer>
 
 
-<script>
-var m=document.getElementById('menu'),n=document.getElementById('nav');
-m.addEventListener('click',function(){var o=n.classList.toggle('open');m.setAttribute('aria-expanded',o)});
-n.addEventListener('click',function(e){if(e.target.tagName==='A'){n.classList.remove('open');m.setAttribute('aria-expanded',false)}});
-</script>
+<script src="menu.js"></script>
 <script src="supabase-config.js"></script>
 <script src="spiral.js"></script>
 <script>

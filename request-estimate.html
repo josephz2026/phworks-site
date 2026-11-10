@@ -46,11 +46,9 @@
 </form>
 </div></section></main>
 <footer><div class="wrap"><p class="lic"><strong>P.H. WORKS INC.</strong><br>Menachem Cohen<br>NYC LMP #2436<br>388 East 198th Street, Bronx, NY 10458</p><p class="fl"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></p><p>&copy; P.H. Works Inc. Licensed and insured.</p></div></footer>
+<script src="menu.js"></script>
 <script src="submit.js"></script>
 <script>
-var mb=document.getElementById('mb'),nv=document.getElementById('nv');
-mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
-nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
 var f=document.getElementById('q');
 var bd=document.getElementById('bd'),t=new Date();bd.min=t.getFullYear()+'-'+String(t.getMonth()+1).padStart(2,'0')+'-'+String(t.getDate()).padStart(2,'0');
 PHSubmit({form:f,type:'quote',build:function(f){return {

@@ -44,11 +44,7 @@
 <button class="x" id="lx" aria-label="Close">&times;</button>
 <div class="box" id="lbox"></div>
 </div>
-<script>
-var mb=document.getElementById('mb'),nv=document.getElementById('nv');
-mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
-nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
-</script>
+<script src="menu.js"></script>
 <script src="supabase-config.js"></script>
 <script>
 /* Projects come from the admin page (admin.html). Add or edit them there. */

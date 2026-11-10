@@ -53,11 +53,9 @@
 </form>
 </div></section></main>
 <footer><div class="wrap"><p class="lic"><strong>P.H. WORKS INC.</strong><br>Menachem Cohen<br>NYC LMP #2436<br>388 East 198th Street, Bronx, NY 10458</p><p class="fl"><a href="terms.html">Terms of Use</a><a href="privacy.html">Privacy Policy</a></p><p>&copy; P.H. Works Inc. Licensed and insured.</p></div></footer>
+<script src="menu.js"></script>
 <script src="submit.js"></script>
 <script>
-var mb=document.getElementById('mb'),nv=document.getElementById('nv');
-mb.addEventListener('click',function(){var o=nv.classList.toggle('open');mb.setAttribute('aria-expanded',o)});
-nv.addEventListener('click',function(e){if(e.target.tagName==='A'){nv.classList.remove('open');mb.setAttribute('aria-expanded','false')}});
 var f=document.getElementById('q'),fi=f.elements.attachment,pn=document.getElementById('pn'),pl=document.getElementById('pl'),ps=document.getElementById('ps'),pics=[];
 var NOTE=pn.textContent;
 function draw(){ps.textContent=pics.length?pics.length+' of 5 photo'+(pics.length>1?'s':'')+' added':'Please choose a photo';pl.innerHTML='';pics.forEach(function(file,i){var li=document.createElement('li'),sp=document.createElement('span'),b=document.createElement('button');sp.textContent=file.name;b.type='button';b.textContent='Remove';b.setAttribute('aria-label','Remove '+file.name);b.addEventListener('click',function(){pics.splice(i,1);pn.textContent=NOTE;draw()});li.appendChild(sp);li.appendChild(b);pl.appendChild(li)})}
