@@ -34,12 +34,12 @@ nav{display:none}
 nav a,.menu{color:#fff;font:600 15px var(--font-body);text-decoration:none;padding:10px 20px;border-radius:999px;background:linear-gradient(135deg,rgba(255,255,255,.2),rgba(255,255,255,.06));border:1.5px solid rgba(255,255,255,.5);-webkit-backdrop-filter:blur(14px) saturate(170%);backdrop-filter:blur(14px) saturate(170%);box-shadow:inset 0 1px 0 rgba(255,255,255,.45),inset 0 -1px 0 rgba(255,255,255,.1),0 4px 14px rgba(0,0,0,.25)}
 .menu{cursor:pointer}
 nav a:hover,nav a[aria-current="page"]{background:linear-gradient(135deg,rgba(255,255,255,.34),rgba(255,255,255,.14))}
-nav.open{display:flex;flex-direction:column;position:absolute;top:calc(100% + 4px);right:0;width:min(260px,100%);padding:12px;gap:8px;border-radius:22px;background:rgba(10,24,38,.55);border:1px solid rgba(255,255,255,.28);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);box-shadow:0 14px 36px rgba(0,0,0,.4);z-index:5}
+nav.open{display:flex;flex-direction:column;position:absolute;top:calc(100% + 4px);right:0;width:min(260px,100%);padding:12px;gap:8px;border-radius:22px;background:rgba(10,24,38,.88);border:1px solid rgba(255,255,255,.28);-webkit-backdrop-filter:blur(22px) saturate(170%);backdrop-filter:blur(22px) saturate(170%);box-shadow:0 14px 36px rgba(0,0,0,.4);z-index:5}
 nav.open a{text-align:center}
 @media(min-width:900px){nav{display:flex;gap:10px;margin-left:auto}.menu{display:none}}
 
 /* page title block (every page except the home page) */
-.pg{position:relative;overflow:hidden;color:var(--on);background:radial-gradient(900px 420px at 15% -10%,rgba(209,74,5,.35),transparent 60%),radial-gradient(800px 460px at 95% 10%,rgba(70,140,200,.35),transparent 60%),var(--navy)}
+.pg{position:relative;color:var(--on);background:radial-gradient(900px 420px at 15% -10%,rgba(209,74,5,.35),transparent 60%),radial-gradient(800px 460px at 95% 10%,rgba(70,140,200,.35),transparent 60%),var(--navy)}
 .pg .wrap{position:relative}
 .pg .top{text-align:center;padding:46px 0 54px}
 .pg h1{font-size:clamp(38px,7vw,72px);margin:0 auto}
