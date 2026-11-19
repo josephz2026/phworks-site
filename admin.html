@@ -65,6 +65,23 @@
   .date.err { color:#b91c1c; }
   /* Service: message preview on the closed card */
   details.row summary .snip { flex-basis:100%; color:var(--muted); font-size:.9rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
+  /* Careers dashboard */
+  .dash { margin-bottom:18px; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:10px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .tile b { display:block; font-size:1.7rem; line-height:1.1; }
+  .tile span { color:var(--muted); font-size:.85rem; }
+  .dash h3 { font-size:.95rem; margin:16px 0 8px; color:var(--muted); font-weight:600; }
+  .pipe { display:flex; gap:8px; flex-wrap:wrap; }
+  .pipe span { background:var(--card); border:1px solid var(--line); border-radius:99px; padding:4px 12px; font-size:.9rem; }
+  .pipe b { margin-left:4px; }
+  .mchart { display:grid; grid-template-columns:repeat(12,1fr); gap:6px; align-items:end; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 10px 8px; }
+  .mcol { display:grid; gap:4px; text-align:center; font-size:.7rem; color:var(--muted); }
+  .mbars { display:flex; gap:2px; align-items:flex-end; height:90px; justify-content:center; }
+  .mbars i { flex:1; max-width:14px; min-height:2px; border-radius:2px 2px 0 0; display:block; }
+  .mbars i.h { background:var(--done); } .mbars i.t { background:#dc2626; }
+  .legend { font-size:.8rem; color:var(--muted); margin-top:6px; }
+  .hire { display:grid; gap:10px; padding:10px; border:1px solid var(--line); border-radius:8px; }
   details[open] > summary .snip { display:none; }
   details.row summary .when { margin-left:auto; }
   details.row summary .meta { color:var(--muted); font-size:.9rem; }
@@ -174,14 +191,56 @@ function showDash(email, role) {
   select(views.find(v => v.key === selectedView) || views[0]);
 }
 
+let dashRefresh = null;
 async function loadView(v, list) {
   const request = Symbol(); list.request = request;
+  dashRefresh = null;
   list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
   const { data, error } = await sb.from('submissions').select('*').eq('type', v.type).order('created_at', { ascending:false }).limit(200);
   if (list.request !== request) return;
   if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
-  if (!data.length) return list.replaceChildren(el('p', { class:'msg' }, 'Nothing here yet.'));
-  list.replaceChildren(...data.map(r => card(v, r)));
+  const parts = [];
+  if (v.key === 'hr') { const box = el('div', { class:'dash' }); dashRefresh = () => renderDash(box); renderDash(box); parts.push(box); }
+  if (!data.length) parts.push(el('p', { class:'msg' }, 'Nothing here yet.'));
+  else parts.push(...data.map(r => card(v, r)));
+  list.replaceChildren(...parts);
+}
+
+// ---------- Careers dashboard ----------
+const HIRE_STATUSES = [['new','New'],['interview','Interview'],['hired','Hired'],['rejected','Rejected'],['terminated','Terminated']];
+const isoDate = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+async function renderDash(box) {
+  const { data, error } = await sb.from('submissions').select('hire_status,hired_on,ended_on,created_at').eq('type', 'application').limit(5000);
+  if (error) { box.replaceChildren(el('p', { class:'msg err' }, 'Dashboard could not load: ' + error.message + ' (run the careers SQL first)')); return; }
+  const now = new Date(), today = isoDate(now), ym = today.slice(0, 7);
+  const yearAgo = isoDate(new Date(now.getFullYear() - 1, now.getMonth(), now.getDate() + 1));
+  const hiredRows = data.filter(r => r.hired_on && (r.hire_status === 'hired' || r.hire_status === 'terminated'));
+  const termRows = data.filter(r => r.ended_on && r.hire_status === 'terminated');
+  const hiredMonth = hiredRows.filter(r => r.hired_on.slice(0, 7) === ym).length;
+  const hiredYear = hiredRows.filter(r => r.hired_on >= yearAgo).length;
+  const termMonth = termRows.filter(r => r.ended_on.slice(0, 7) === ym).length;
+  const termYear = termRows.filter(r => r.ended_on >= yearAgo).length;
+  const staying = data.filter(r => r.hire_status === 'hired').length;
+  const count = (st) => data.filter(r => (r.hire_status || 'new') === st).length;
+  const tile = (n, label) => el('div', { class:'tile' }, el('b', {}, String(n)), el('span', {}, label));
+
+  // last 12 months, oldest first
+  const months = [];
+  for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key:isoDate(d).slice(0, 7), label:d.toLocaleString(undefined, { month:'short' }), h:0, t:0 }); }
+  hiredRows.forEach(r => { const m = months.find(x => x.key === r.hired_on.slice(0, 7)); if (m) m.h++; });
+  termRows.forEach(r => { const m = months.find(x => x.key === r.ended_on.slice(0, 7)); if (m) m.t++; });
+  const max = Math.max(1, ...months.map(m => Math.max(m.h, m.t)));
+  const chart = el('div', { class:'mchart' }, months.map(m => el('div', { class:'mcol', title:`${m.label}: ${m.h} hired, ${m.t} terminated` },
+    el('div', { class:'mbars' }, el('i', { class:'h', style:`height:${m.h / max * 100}%` }), el('i', { class:'t', style:`height:${m.t / max * 100}%` })), m.label)));
+
+  box.replaceChildren(
+    el('div', { class:'tiles' }, tile(hiredMonth, 'Hired this month'), tile(hiredYear, 'Hired, past 12 months'), tile(termMonth, 'Terminated this month'), tile(termYear, 'Terminated, past 12 months'), tile(staying, 'Currently employed')),
+    el('h3', {}, 'Applications by stage'),
+    el('div', { class:'pipe' }, HIRE_STATUSES.map(([k, l]) => el('span', {}, l, el('b', {}, String(count(k)))))),
+    el('h3', {}, 'Hired vs. terminated, by month'),
+    chart,
+    el('div', { class:'legend' }, 'Green = hired, red = terminated. Counts use the hire and end dates you enter on each application.'));
 }
 
 function card(v, r) {
@@ -236,7 +295,8 @@ function card(v, r) {
       const paths = (r.files || []).map(f => f.path).filter(Boolean);
       if (paths.length) await sb.storage.from('uploads').remove(paths); // attachments, best effort
       const host = node.parentElement; node.remove();
-      if (host && !host.children.length) host.append(el('p', { class:'msg' }, 'Nothing here yet.'));
+      if (host && !host.querySelector('.row')) host.append(el('p', { class:'msg' }, 'Nothing here yet.'));
+      if (dashRefresh) dashRefresh();
     } catch (err) { btn.disabled = false; alert('Could not delete: ' + err.message); }
   }}, `Delete this ${v.key === 'hr' ? 'application' : 'request'}`)) : null;
 
@@ -259,9 +319,35 @@ function card(v, r) {
   if (v.key === 'hr') bits = [pick(/city|town/i), pick(/position|role|applying|job|title/i)];
   else bits = [pick(/bor+o/i), pick(/project.*type|type.*(project|work|job)|^type$|^project$|scope/i)];
   bits = bits.filter(Boolean);
+  let hireBox = null;
+  if (v.key === 'hr') {
+    const hs = el('select', { 'aria-label':'Hiring status' }, HIRE_STATUSES.map(([k, l]) => { const o = el('option', { value:k }, l); if ((r.hire_status || 'new') === k) o.selected = true; return o; }));
+    const hd = el('input', { type:'date', 'aria-label':'Hire date' }); hd.value = r.hired_on || '';
+    const ed = el('input', { type:'date', 'aria-label':'End date' }); ed.value = r.ended_on || '';
+    const hsave = el('span', { class:'date' });
+    const saveHire = async () => {
+      if (hs.value === 'hired' && !hd.value) hd.value = isoDate(new Date());
+      if (hs.value === 'terminated' && !ed.value) ed.value = isoDate(new Date());
+      [hs, hd, ed].forEach(x => x.disabled = true); hsave.textContent = 'Saving…';
+      const row = { hire_status:hs.value, hired_on:hd.value || null, ended_on:ed.value || null };
+      try {
+        const { error } = await sb.from('submissions').update(row).eq('id', r.id);
+        if (error) throw error;
+        Object.assign(r, row); hsave.textContent = 'Saved'; if (dashRefresh) dashRefresh();
+      } catch (e) { hsave.textContent = 'Not saved: ' + e.message; }
+      finally { [hs, hd, ed].forEach(x => x.disabled = false); }
+    };
+    [hs, hd, ed].forEach(x => x.addEventListener('change', saveHire));
+    hireBox = el('div', { class:'hire' },
+      el('div', { class:'grid2' },
+        el('label', { class:'fld' }, el('span', {}, 'Hiring status'), hs),
+        el('label', { class:'fld' }, el('span', {}, 'Hire date'), hd),
+        el('label', { class:'fld' }, el('span', {}, 'End date (if terminated)'), ed)),
+      hsave);
+  }
   node = el('details', { class:'row' },
     el('summary', {}, el('strong', {}, r.name || '(no name)'), ...bits.map(b => el('span', { class:'meta' }, b)), el('span', { class:'date when' }, new Date(r.created_at).toLocaleString())),
-    el('div', { class:'edit' }, dl, files, el('div', { class:'ctl' }, notes, saved), del));
+    el('div', { class:'edit' }, dl, files, hireBox, el('div', { class:'ctl' }, notes, saved), del));
   return node;
 }
 

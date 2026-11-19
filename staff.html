@@ -41,6 +41,63 @@
   .msg { color:var(--muted); padding:20px 0; }
   .err { color:#b91c1c; }
   :focus-visible { outline:2px solid var(--accent); outline-offset:2px; }
+
+  input[type=text] { width:100%; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
+  details.row summary { cursor:pointer; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .badge { font-size:.75rem; padding:2px 8px; border-radius:99px; border:1px solid var(--line); color:var(--muted); }
+  .badge.live { color:var(--done); border-color:var(--done); }
+  .edit { margin-top:12px; display:grid; gap:12px; }
+  .fld { display:grid; gap:4px; } .fld > span { color:var(--muted); font-size:.9rem; }
+  .fld select, .fld textarea { width:100%; }
+  .fld input[type=text] { margin-top:2px; }
+  .grid2 { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; }
+  .thumbs { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:10px; }
+  .thumb { display:grid; gap:6px; }
+  .thumb img { width:100%; aspect-ratio:4/3; object-fit:cover; border-radius:6px; border:1px solid var(--line); }
+  /* Photo toggles: cover (Projects page) and Home (index spiral) */
+  .ph { position:relative; }
+  .thumb .tg { position:absolute; top:6px; min-height:32px; padding:4px 9px; font-size:.78rem; font-weight:600; line-height:1; border-radius:99px; border:1px solid rgba(255,255,255,.55); background:rgba(15,23,32,.72); color:#fff; cursor:pointer; }
+  .thumb .tg.cvr { left:6px; } .thumb .tg.hom { right:6px; }
+  .thumb .tg[aria-pressed="true"] { background:#d14a05; border-color:#d14a05; }
+  .thumb .tg:disabled { opacity:.6; cursor:wait; }
+  .chk { display:flex; align-items:center; gap:8px; }
+  .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .date.err { color:#b91c1c; }
+  /* Service: message preview on the closed card */
+  details.row summary .snip { flex-basis:100%; color:var(--muted); font-size:.9rem; overflow:hidden; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; word-break:break-word; }
+  /* Careers dashboard */
+  .dash { margin-bottom:18px; }
+  .tiles { display:grid; grid-template-columns:repeat(auto-fit,minmax(135px,1fr)); gap:10px; }
+  .tile { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px; }
+  .tile b { display:block; font-size:1.7rem; line-height:1.1; }
+  .tile span { color:var(--muted); font-size:.85rem; }
+  .dash h3 { font-size:.95rem; margin:16px 0 8px; color:var(--muted); font-weight:600; }
+  .pipe { display:flex; gap:8px; flex-wrap:wrap; }
+  .pipe span { background:var(--card); border:1px solid var(--line); border-radius:99px; padding:4px 12px; font-size:.9rem; }
+  .pipe b { margin-left:4px; }
+  .mchart { display:grid; grid-template-columns:repeat(12,1fr); gap:6px; align-items:end; background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 10px 8px; }
+  .mcol { display:grid; gap:4px; text-align:center; font-size:.7rem; color:var(--muted); }
+  .mbars { display:flex; gap:2px; align-items:flex-end; height:90px; justify-content:center; }
+  .mbars i { flex:1; max-width:14px; min-height:2px; border-radius:2px 2px 0 0; display:block; }
+  .mbars i.h { background:var(--done); } .mbars i.t { background:#dc2626; }
+  .legend { font-size:.8rem; color:var(--muted); margin-top:6px; }
+  .hire { display:grid; gap:10px; padding:10px; border:1px solid var(--line); border-radius:8px; }
+  details[open] > summary .snip { display:none; }
+  details.row summary .when { margin-left:auto; }
+  details.row summary .meta { color:var(--muted); font-size:.9rem; }
+  .delrow { margin-top:12px; }
+  /* Projects: drag to reorder */
+  .grip { color:var(--muted); letter-spacing:-2px; user-select:none; }
+  .dragsum { cursor:grab; }
+  .dragsum:active { cursor:grabbing; }
+  .thumb img { cursor:grab; }
+  .thumb img:active { cursor:grabbing; }
+  .dragging { opacity:.4; }
+  .dragsum, .thumb img { -webkit-touch-callout:none; -webkit-user-select:none; user-select:none; }
+  .drop-before { box-shadow:0 -4px 0 var(--accent); }
+  .drop-after { box-shadow:0 4px 0 var(--accent); }
+  .thumbs .drop-before { box-shadow:-6px 0 0 var(--accent); }
+  .thumbs .drop-after { box-shadow:6px 0 0 var(--accent); }
 </style>
 </head>
 <body>
@@ -58,11 +115,12 @@ const app = document.getElementById('app');
 
 // Each tab: which roles can open it, which table it reads, which fields to show
 const VIEWS = [
-  { key:'hr', label:'Careers', type:'application', roles:['admin','hr'] },
   { key:'service', label:'Service', type:'service', roles:['admin','service'] },
   { key:'estimating', label:'Construction', type:'quote', roles:['admin','estimating'] },
+  { key:'hr', label:'Careers', type:'application', roles:['admin','hr'] },
 ];
-const STATUSES = ['new','in progress','done'];
+let dashboardUser = null;
+let selectedView = 'service';
 
 function el(tag, props = {}, ...kids) {
   const n = document.createElement(tag);
@@ -93,7 +151,9 @@ function showLogin(note) {
 }
 
 async function boot() {
-  const { data: { session } } = await sb.auth.getSession();
+  const { data: { session }, error: sessionError } = await sb.auth.getSession();
+  if (sessionError) return showLogin('Could not restore sign-in: ' + sessionError.message);
+  if (session && dashboardUser === session.user.id) return;
   if (!session) return showLogin();
   const { data: role, error } = await sb.rpc('my_role');
   const staff = role ? { role } : null;
@@ -107,6 +167,7 @@ async function boot() {
   const isAdmin = staff.role === 'admin';
   if (PAGE === 'admin' && !isAdmin) { location.replace('staff.html'); return; }
   if (PAGE === 'staff' && isAdmin) { location.replace('admin.html'); return; }
+  dashboardUser = session.user.id;
   showDash(session.user.email, staff.role);
 }
 
@@ -115,6 +176,7 @@ function showDash(email, role) {
   const list = el('div');
   const tabs = el('div', { class:'tabs', role:'tablist' });
   const select = (v) => {
+    selectedView = v.key;
     [...tabs.children].forEach(b => b.setAttribute('aria-selected', b.dataset.key === v.key));
     loadView(v, list);
   };
@@ -123,17 +185,61 @@ function showDash(email, role) {
   app.replaceChildren(
     el('header', {},
       el('div', {}, el('h1', {}, 'PH Works Team'), el('div', { class:'who' }, email)),
-      el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); showLogin(); } }, 'Sign out')),
+      el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); dashboardUser = null; showLogin(); } }, 'Sign out')),
     tabs, list);
-  select(views[0]);
+  select(views.find(v => v.key === selectedView) || views[0]);
 }
 
+let dashRefresh = null;
 async function loadView(v, list) {
+  const request = Symbol(); list.request = request;
+  dashRefresh = null;
   list.replaceChildren(el('p', { class:'msg' }, 'Loading…'));
   const { data, error } = await sb.from('submissions').select('*').eq('type', v.type).order('created_at', { ascending:false }).limit(200);
+  if (list.request !== request) return;
   if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
-  if (!data.length) return list.replaceChildren(el('p', { class:'msg' }, 'Nothing here yet.'));
-  list.replaceChildren(...data.map(r => card(v, r)));
+  const parts = [];
+  if (v.key === 'hr') { const box = el('div', { class:'dash' }); dashRefresh = () => renderDash(box); renderDash(box); parts.push(box); }
+  if (!data.length) parts.push(el('p', { class:'msg' }, 'Nothing here yet.'));
+  else parts.push(...data.map(r => card(v, r)));
+  list.replaceChildren(...parts);
+}
+
+// ---------- Careers dashboard ----------
+const HIRE_STATUSES = [['new','New'],['interview','Interview'],['hired','Hired'],['rejected','Rejected'],['terminated','Terminated']];
+const isoDate = (d) => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+
+async function renderDash(box) {
+  const { data, error } = await sb.from('submissions').select('hire_status,hired_on,ended_on,created_at').eq('type', 'application').limit(5000);
+  if (error) { box.replaceChildren(el('p', { class:'msg err' }, 'Dashboard could not load: ' + error.message + ' (run the careers SQL first)')); return; }
+  const now = new Date(), today = isoDate(now), ym = today.slice(0, 7);
+  const yearAgo = isoDate(new Date(now.getFullYear() - 1, now.getMonth(), now.getDate() + 1));
+  const hiredRows = data.filter(r => r.hired_on && (r.hire_status === 'hired' || r.hire_status === 'terminated'));
+  const termRows = data.filter(r => r.ended_on && r.hire_status === 'terminated');
+  const hiredMonth = hiredRows.filter(r => r.hired_on.slice(0, 7) === ym).length;
+  const hiredYear = hiredRows.filter(r => r.hired_on >= yearAgo).length;
+  const termMonth = termRows.filter(r => r.ended_on.slice(0, 7) === ym).length;
+  const termYear = termRows.filter(r => r.ended_on >= yearAgo).length;
+  const staying = data.filter(r => r.hire_status === 'hired').length;
+  const count = (st) => data.filter(r => (r.hire_status || 'new') === st).length;
+  const tile = (n, label) => el('div', { class:'tile' }, el('b', {}, String(n)), el('span', {}, label));
+
+  // last 12 months, oldest first
+  const months = [];
+  for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ key:isoDate(d).slice(0, 7), label:d.toLocaleString(undefined, { month:'short' }), h:0, t:0 }); }
+  hiredRows.forEach(r => { const m = months.find(x => x.key === r.hired_on.slice(0, 7)); if (m) m.h++; });
+  termRows.forEach(r => { const m = months.find(x => x.key === r.ended_on.slice(0, 7)); if (m) m.t++; });
+  const max = Math.max(1, ...months.map(m => Math.max(m.h, m.t)));
+  const chart = el('div', { class:'mchart' }, months.map(m => el('div', { class:'mcol', title:`${m.label}: ${m.h} hired, ${m.t} terminated` },
+    el('div', { class:'mbars' }, el('i', { class:'h', style:`height:${m.h / max * 100}%` }), el('i', { class:'t', style:`height:${m.t / max * 100}%` })), m.label)));
+
+  box.replaceChildren(
+    el('div', { class:'tiles' }, tile(hiredMonth, 'Hired this month'), tile(hiredYear, 'Hired, past 12 months'), tile(termMonth, 'Terminated this month'), tile(termYear, 'Terminated, past 12 months'), tile(staying, 'Currently employed')),
+    el('h3', {}, 'Applications by stage'),
+    el('div', { class:'pipe' }, HIRE_STATUSES.map(([k, l]) => el('span', {}, l, el('b', {}, String(count(k)))))),
+    el('h3', {}, 'Hired vs. terminated, by month'),
+    chart,
+    el('div', { class:'legend' }, 'Green = hired, red = terminated. Counts use the hire and end dates you enter on each application.'));
 }
 
 function card(v, r) {
@@ -145,31 +251,118 @@ function card(v, r) {
 
   const files = (r.files || []).length ? el('div', { class:'files' }, r.files.map((f, i) =>
     el('button', { class:'ghost', onclick: async () => {
-      const { data, error } = await sb.storage.from('uploads').createSignedUrl(f.path, 300);
-      if (error) return alert('Could not open file: ' + error.message);
-      window.open(data.signedUrl, '_blank', 'noopener');
+      const popup = window.open('about:blank', '_blank');
+      if (!popup) return alert('Allow pop-ups for this page to open attachments.');
+      popup.opener = null;
+      try {
+        const { data, error } = await sb.storage.from('uploads').createSignedUrl(f.path, 300);
+        if (error) throw error;
+        popup.location.replace(data.signedUrl);
+      } catch(e) { popup.close(); alert('Could not open file: ' + e.message); }
     }}, f.name || ('File ' + (i + 1))))) : null;
 
-  const status = el('select', { 'aria-label':'Status' }, STATUSES.map(s => {
-    const o = el('option', { value:s }, s); if (s === r.status) o.selected = true; return o;
-  }));
   const notes = el('textarea', { placeholder:'Notes' }); notes.value = r.notes || '';
   const saved = el('span', { class:'date' });
+  const moved = el('input', { type:'checkbox' }); moved.checked = r.moved_to_asana === true;
+  const badge = el('span');
+  const syncAsana = () => { badge.textContent = moved.checked ? 'Moved to Asana' : 'Not moved to Asana'; badge.style.color = moved.checked ? 'var(--done)' : '#dc2626'; };
+  syncAsana();
   const save = async () => {
-    saved.textContent = 'Saving…';
-    const { error } = await sb.from('submissions').update({ status:status.value, notes:notes.value }).eq('id', r.id);
-    saved.textContent = error ? 'Not saved: ' + error.message : 'Saved';
+    moved.disabled = true; notes.disabled = true; saved.textContent = 'Saving…';
+    const row = { notes:notes.value };
+    if (v.key === 'service') row.moved_to_asana = moved.checked;
+    try {
+      const { error } = await sb.from('submissions').update(row).eq('id', r.id);
+      if (error) throw error;
+      Object.assign(r, row); saved.textContent = 'Saved';
+    } catch (e) { moved.checked = r.moved_to_asana === true; saved.textContent = 'Not saved: ' + e.message; }
+    finally { moved.disabled = false; notes.disabled = false; syncAsana(); }
   };
-  status.addEventListener('change', save);
-  notes.addEventListener('blur', () => { if (notes.value !== (r.notes || '')) { r.notes = notes.value; save(); } });
+  moved.addEventListener('change', save);
+  notes.addEventListener('blur', () => { if (notes.value !== (r.notes || '')) save(); });
+  const heading = [el('strong', {}, r.name || '(no name)'), el('span', { class:'date' }, new Date(r.created_at).toLocaleString())];
 
-  return el('div', { class:'row' },
-    el('div', { class:'top' }, el('strong', {}, r.name || '(no name)'), el('span', { class:'date' }, new Date(r.created_at).toLocaleString())),
-    dl, files, el('div', { class:'ctl' }, status, notes, saved));
+  // Delete: admin page only. Staff roles never see the button (and the database refuses them too).
+  const del = PAGE === 'admin' ? el('div', { class:'delrow' }, el('button', { class:'ghost', onclick: async (e) => {
+    const what = v.key === 'hr' ? 'application' : 'request';
+    if (!confirm(`Delete this ${what} from ${r.name || 'this person'}? This cannot be undone.`)) return;
+    const btn = e.currentTarget; btn.disabled = true;
+    try {
+      const { data, error } = await sb.from('submissions').delete().eq('id', r.id).select('id');
+      if (error) throw error;
+      if (!data || !data.length) throw new Error('the database did not allow it (run the delete SQL first)');
+      const paths = (r.files || []).map(f => f.path).filter(Boolean);
+      if (paths.length) await sb.storage.from('uploads').remove(paths); // attachments, best effort
+      const host = node.parentElement; node.remove();
+      if (host && !host.querySelector('.row')) host.append(el('p', { class:'msg' }, 'Nothing here yet.'));
+      if (dashRefresh) dashRefresh();
+    } catch (err) { btn.disabled = false; alert('Could not delete: ' + err.message); }
+  }}, `Delete this ${v.key === 'hr' ? 'application' : 'request'}`)) : null;
+
+  // Looks in the form answers for a field whose name matches, so it works whatever the form calls it
+  const pick = (re) => { for (const [k, val] of Object.entries(r.extra || {})) if (re.test(k) && val) return String(val); return ''; };
+
+  let node;
+  if (v.key === 'service') {
+    const extra = r.extra || {};
+    const service = extra.service || extra.Service || extra['Service type'] || extra['service_type'] || 'Service request';
+    const preview = (r.message || '').replace(/\s+/g, ' ').trim();
+    const boro = pick(/bor+o/i);
+    node = el('details', { class:'row' }, el('summary', {}, el('strong', {}, r.name || '(no name)'), el('span', {}, service), boro ? el('span', { class:'meta' }, boro) : null, badge, el('span', { class:'date when' }, new Date(r.created_at).toLocaleString()), preview ? el('span', { class:'snip' }, preview) : null),
+      el('div', { class:'edit' }, dl, files, el('label', { class:'chk' }, moved, 'Moved to Asana'), el('div', { class:'ctl' }, notes, saved), del));
+    return node;
+  }
+
+  // Construction and Careers: collapsed list line, click to open
+  let bits;
+  if (v.key === 'hr') bits = [pick(/city|town/i), pick(/position|role|applying|job|title/i)];
+  else bits = [pick(/bor+o/i), pick(/project.*type|type.*(project|work|job)|^type$|^project$|scope/i)];
+  bits = bits.filter(Boolean);
+  let hireBox = null;
+  if (v.key === 'hr') {
+    const hs = el('select', { 'aria-label':'Hiring status' }, HIRE_STATUSES.map(([k, l]) => { const o = el('option', { value:k }, l); if ((r.hire_status || 'new') === k) o.selected = true; return o; }));
+    const hd = el('input', { type:'date', 'aria-label':'Hire date' }); hd.value = r.hired_on || '';
+    const ed = el('input', { type:'date', 'aria-label':'End date' }); ed.value = r.ended_on || '';
+    const hsave = el('span', { class:'date' });
+    const saveHire = async () => {
+      if (hs.value === 'hired' && !hd.value) hd.value = isoDate(new Date());
+      if (hs.value === 'terminated' && !ed.value) ed.value = isoDate(new Date());
+      [hs, hd, ed].forEach(x => x.disabled = true); hsave.textContent = 'Saving…';
+      const row = { hire_status:hs.value, hired_on:hd.value || null, ended_on:ed.value || null };
+      try {
+        const { error } = await sb.from('submissions').update(row).eq('id', r.id);
+        if (error) throw error;
+        Object.assign(r, row); hsave.textContent = 'Saved'; if (dashRefresh) dashRefresh();
+      } catch (e) { hsave.textContent = 'Not saved: ' + e.message; }
+      finally { [hs, hd, ed].forEach(x => x.disabled = false); }
+    };
+    [hs, hd, ed].forEach(x => x.addEventListener('change', saveHire));
+    hireBox = el('div', { class:'hire' },
+      el('div', { class:'grid2' },
+        el('label', { class:'fld' }, el('span', {}, 'Hiring status'), hs),
+        el('label', { class:'fld' }, el('span', {}, 'Hire date'), hd),
+        el('label', { class:'fld' }, el('span', {}, 'End date (if terminated)'), ed)),
+      hsave);
+  }
+  node = el('details', { class:'row' },
+    el('summary', {}, el('strong', {}, r.name || '(no name)'), ...bits.map(b => el('span', { class:'meta' }, b)), el('span', { class:'date when' }, new Date(r.created_at).toLocaleString())),
+    el('div', { class:'edit' }, dl, files, hireBox, el('div', { class:'ctl' }, notes, saved), del));
+  return node;
 }
 
-sb.auth.onAuthStateChange((evt) => { if (evt === 'SIGNED_IN') boot(); });
-boot();
+sb.auth.onAuthStateChange((evt, session) => {
+  // Run outside Supabase's auth callback lock. Repeated SIGNED_IN keeps the current editor intact.
+  if (evt === 'SIGNED_OUT') { dashboardUser = null; showLogin(); }
+  else if (evt === 'SIGNED_IN' && session?.user.id !== dashboardUser) setTimeout(start, 0);
+});
+let starting = false;
+async function start() {
+  if (starting) return;
+  starting = true;
+  try { await boot(); } catch(e) { showLogin('Could not start: ' + e.message); }
+  finally { starting = false; }
+}
+start();
 </script>
 </body>
 </html>
