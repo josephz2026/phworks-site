@@ -82,6 +82,12 @@
   .mbars i.h { background:var(--done); } .mbars i.t { background:#dc2626; }
   .legend { font-size:.8rem; color:var(--muted); margin-top:6px; }
   .hire { display:grid; gap:10px; padding:10px; border:1px solid var(--line); border-radius:8px; }
+  /* Manual entry */
+  .addbox { margin:0 0 14px; }
+  .addbox form { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; margin-top:10px; display:grid; gap:12px; }
+  .addbox input[type=text], .addbox input[type=tel], .addbox input[type=email], .addbox input[type=date], .hire input[type=date] { width:100%; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
+  .addbox textarea { width:100%; min-height:70px; }
+  .addbox .acts { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
   details[open] > summary .snip { display:none; }
   details.row summary .when { margin-left:auto; }
   details.row summary .meta { color:var(--muted); font-size:.9rem; }
@@ -201,6 +207,7 @@ async function loadView(v, list) {
   if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
   const parts = [];
   if (v.key === 'hr') { const box = el('div', { class:'dash' }); dashRefresh = () => renderDash(box); renderDash(box); parts.push(box); }
+  parts.push(addBox(v, () => loadView(v, list)));
   if (!data.length) parts.push(el('p', { class:'msg' }, 'Nothing here yet.'));
   else parts.push(...data.map(r => card(v, r)));
   list.replaceChildren(...parts);
@@ -241,6 +248,62 @@ async function renderDash(box) {
     el('h3', {}, 'Hired vs. terminated, by month'),
     chart,
     el('div', { class:'legend' }, 'Green = hired, red = terminated. Counts use the hire and end dates you enter on each application.'));
+}
+
+// ---------- Add an entry by hand (for jobs, calls and applicants that didn't come through the website) ----------
+const BOROUGHS = ['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'Staten Island'];
+function addBox(v, done) {
+  const box = el('div', { class:'addbox' });
+  const mk = (label, input) => el('label', { class:'fld' }, el('span', {}, label), input);
+  const txt = () => el('input', { type:'text' });
+  const name = txt(), phone = el('input', { type:'tel' }), email = el('input', { type:'email' });
+  const when = el('input', { type:'date' }); when.value = isoDate(new Date());
+  const msg = el('textarea', { placeholder:'Details or notes' });
+  const boro = el('select', {}, el('option', { value:'' }, '(none)'), BOROUGHS.map(b => el('option', { value:b }, b)));
+  const addr = txt(), svc = txt(), ptype = txt(), city = txt(), pos = txt();
+  const asana = el('input', { type:'checkbox' });
+  const hs = el('select', {}, HIRE_STATUSES.map(([k, l]) => el('option', { value:k }, l)));
+  const hd = el('input', { type:'date' }), ed = el('input', { type:'date' });
+  const out = el('span', { class:'date' });
+
+  let fields;
+  if (v.key === 'service') fields = [mk('Service type', svc), mk('Borough', boro), mk('Address', addr)];
+  else if (v.key === 'estimating') fields = [mk('Borough', boro), mk('Project type', ptype), mk('Address', addr)];
+  else fields = [mk('City', city), mk('Position', pos), mk('Hiring status', hs), mk('Hire date', hd), mk('End date (if terminated)', ed)];
+
+  const form = el('form', { hidden:'', onsubmit: async (e) => {
+    e.preventDefault();
+    if (!name.value.trim()) { out.textContent = 'Name is required.'; return; }
+    const extra = {};
+    const put = (k, val) => { val = (val || '').trim(); if (val) extra[k] = val; };
+    if (v.key === 'service') { put('Service type', svc.value); put('Borough', boro.value); put('Address', addr.value); }
+    else if (v.key === 'estimating') { put('Borough', boro.value); put('Project type', ptype.value); put('Address', addr.value); }
+    else { put('City', city.value); put('Position', pos.value); }
+    const todayStr = isoDate(new Date());
+    const row = {
+      type: v.type, name: name.value.trim(), email: email.value.trim(), phone: phone.value.trim(), message: msg.value.trim(),
+      extra, added_manually: true,
+      created_at: (when.value && when.value !== todayStr) ? new Date(when.value + 'T12:00:00').toISOString() : new Date().toISOString(),
+    };
+    if (v.key === 'service') row.moved_to_asana = asana.checked;
+    if (v.key === 'hr') {
+      row.hire_status = hs.value; row.hired_on = hd.value || null; row.ended_on = ed.value || null;
+      if (hs.value === 'hired' && !row.hired_on) row.hired_on = todayStr;
+      if (hs.value === 'terminated' && !row.ended_on) row.ended_on = todayStr;
+    }
+    out.textContent = 'Saving…';
+    const { error } = await sb.from('submissions').insert(row);
+    if (error) { out.textContent = 'Not saved: ' + error.message; return; }
+    done();
+  }},
+    el('div', { class:'grid2' }, mk('Name', name), mk('Phone', phone), mk('Email', email), mk('Date received', when)),
+    el('div', { class:'grid2' }, fields),
+    v.key === 'service' ? el('label', { class:'chk' }, asana, 'Already in Asana') : null,
+    mk('Details / notes', msg),
+    el('div', { class:'acts' }, el('button', { type:'submit' }, 'Save entry'), el('button', { type:'button', class:'ghost', onclick: () => { form.hidden = true; opener.hidden = false; } }, 'Cancel'), out));
+  const opener = el('button', { type:'button', class:'ghost', onclick: () => { form.hidden = false; opener.hidden = true; name.focus(); } }, '+ Add manually');
+  box.append(opener, form);
+  return box;
 }
 
 function card(v, r) {
@@ -309,7 +372,7 @@ function card(v, r) {
     const service = extra.service || extra.Service || extra['Service type'] || extra['service_type'] || 'Service request';
     const preview = (r.message || '').replace(/\s+/g, ' ').trim();
     const boro = pick(/bor+o/i);
-    node = el('details', { class:'row' }, el('summary', {}, el('strong', {}, r.name || '(no name)'), el('span', {}, service), boro ? el('span', { class:'meta' }, boro) : null, badge, el('span', { class:'date when' }, new Date(r.created_at).toLocaleString()), preview ? el('span', { class:'snip' }, preview) : null),
+    node = el('details', { class:'row' }, el('summary', {}, el('strong', {}, r.name || '(no name)'), el('span', {}, service), boro ? el('span', { class:'meta' }, boro) : null, badge, r.added_manually ? el('span', { class:'badge' }, 'Added manually') : null, el('span', { class:'date when' }, new Date(r.created_at).toLocaleString()), preview ? el('span', { class:'snip' }, preview) : null),
       el('div', { class:'edit' }, dl, files, el('label', { class:'chk' }, moved, 'Moved to Asana'), el('div', { class:'ctl' }, notes, saved), del));
     return node;
   }
@@ -346,7 +409,7 @@ function card(v, r) {
       hsave);
   }
   node = el('details', { class:'row' },
-    el('summary', {}, el('strong', {}, r.name || '(no name)'), ...bits.map(b => el('span', { class:'meta' }, b)), el('span', { class:'date when' }, new Date(r.created_at).toLocaleString())),
+    el('summary', {}, el('strong', {}, r.name || '(no name)'), ...bits.map(b => el('span', { class:'meta' }, b)), r.added_manually ? el('span', { class:'badge' }, 'Added manually') : null, el('span', { class:'date when' }, new Date(r.created_at).toLocaleString())),
     el('div', { class:'edit' }, dl, files, hireBox, el('div', { class:'ctl' }, notes, saved), del));
   return node;
 }
