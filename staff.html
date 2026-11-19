@@ -83,11 +83,15 @@
   .legend { font-size:.8rem; color:var(--muted); margin-top:6px; }
   .hire { display:grid; gap:10px; padding:10px; border:1px solid var(--line); border-radius:8px; }
   /* Manual entry */
-  .addbox { margin:0 0 14px; }
-  .addbox form { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:14px; margin-top:10px; display:grid; gap:12px; }
-  .addbox input[type=text], .addbox input[type=tel], .addbox input[type=email], .addbox input[type=date], .hire input[type=date] { width:100%; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
-  .addbox textarea { width:100%; min-height:70px; }
-  .addbox .acts { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .addlog { width:min(560px,94vw); max-height:90vh; overflow:auto; background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:10px; padding:18px; }
+  .addlog::backdrop { background:rgba(0,0,0,.5); }
+  .addlog form { display:grid; gap:12px; }
+  .addlog h2 { margin:0; font-size:1.15rem; }
+  .addlog input[type=text], .addlog input[type=tel], .addlog input[type=email], .addlog input[type=date], .hire input[type=date] { width:100%; padding:9px; border:1px solid var(--line); border-radius:6px; background:var(--card); }
+  .addlog select, .addlog textarea { width:100%; }
+  .addlog textarea { min-height:80px; }
+  .addlog .acts { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .hbtns { display:flex; gap:8px; flex-wrap:wrap; justify-content:flex-end; }
   details[open] > summary .snip { display:none; }
   details.row summary .when { margin-left:auto; }
   details.row summary .meta { color:var(--muted); font-size:.9rem; }
@@ -181,8 +185,10 @@ function showDash(email, role) {
   const views = VIEWS.filter(v => v.roles.includes(role));
   const list = el('div');
   const tabs = el('div', { class:'tabs', role:'tablist' });
+  const addBtn = el('button', { class:'ghost', onclick: () => { const cur = views.find(x => x.key === selectedView); if (cur && !cur.custom) openAdd(cur, () => loadView(cur, list)); } }, '+ Add manually');
   const select = (v) => {
     selectedView = v.key;
+    addBtn.hidden = !!v.custom;
     [...tabs.children].forEach(b => b.setAttribute('aria-selected', b.dataset.key === v.key));
     loadView(v, list);
   };
@@ -191,7 +197,8 @@ function showDash(email, role) {
   app.replaceChildren(
     el('header', {},
       el('div', {}, el('h1', {}, 'PH Works Team'), el('div', { class:'who' }, email)),
-      el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); dashboardUser = null; showLogin(); } }, 'Sign out')),
+      el('div', { class:'hbtns' }, addBtn,
+        el('button', { class:'ghost', onclick: async () => { await sb.auth.signOut(); dashboardUser = null; showLogin(); } }, 'Sign out'))),
     tabs, list);
   select(views.find(v => v.key === selectedView) || views[0]);
 }
@@ -206,7 +213,6 @@ async function loadView(v, list) {
   if (error) return list.replaceChildren(el('p', { class:'msg err' }, 'Could not load: ' + error.message));
   const parts = [];
   if (v.key === 'hr') { const box = el('div', { class:'dash' }); dashRefresh = () => renderDash(box); renderDash(box); parts.push(box); }
-  parts.push(addBox(v, () => loadView(v, list)));
   if (!data.length) parts.push(el('p', { class:'msg' }, 'Nothing here yet.'));
   else parts.push(...data.map(r => card(v, r)));
   list.replaceChildren(...parts);
@@ -251,8 +257,7 @@ async function renderDash(box) {
 
 // ---------- Add an entry by hand (for jobs, calls and applicants that didn't come through the website) ----------
 const BOROUGHS = ['Bronx', 'Brooklyn', 'Manhattan', 'Queens', 'Staten Island'];
-function addBox(v, done) {
-  const box = el('div', { class:'addbox' });
+function openAdd(v, done) {
   const mk = (label, input) => el('label', { class:'fld' }, el('span', {}, label), input);
   const txt = () => el('input', { type:'text' });
   const name = txt(), phone = el('input', { type:'tel' }), email = el('input', { type:'email' });
@@ -264,13 +269,14 @@ function addBox(v, done) {
   const hs = el('select', {}, HIRE_STATUSES.map(([k, l]) => el('option', { value:k }, l)));
   const hd = el('input', { type:'date' }), ed = el('input', { type:'date' });
   const out = el('span', { class:'date' });
+  const dlg = el('dialog', { class:'addlog' });
 
   let fields;
   if (v.key === 'service') fields = [mk('Service type', svc), mk('Borough', boro), mk('Address', addr)];
   else if (v.key === 'estimating') fields = [mk('Borough', boro), mk('Project type', ptype), mk('Address', addr)];
   else fields = [mk('City', city), mk('Position', pos), mk('Hiring status', hs), mk('Hire date', hd), mk('End date (if terminated)', ed)];
 
-  const form = el('form', { hidden:'', onsubmit: async (e) => {
+  const form = el('form', { onsubmit: async (e) => {
     e.preventDefault();
     if (!name.value.trim()) { out.textContent = 'Name is required.'; return; }
     const extra = {};
@@ -293,16 +299,19 @@ function addBox(v, done) {
     out.textContent = 'Saving…';
     const { error } = await sb.from('submissions').insert(row);
     if (error) { out.textContent = 'Not saved: ' + error.message; return; }
-    done();
+    dlg.close(); done();
   }},
+    el('h2', {}, 'Add to ' + v.label),
     el('div', { class:'grid2' }, mk('Name', name), mk('Phone', phone), mk('Email', email), mk('Date received', when)),
     el('div', { class:'grid2' }, fields),
     v.key === 'service' ? el('label', { class:'chk' }, asana, 'Already in Asana') : null,
     mk('Details / notes', msg),
-    el('div', { class:'acts' }, el('button', { type:'submit' }, 'Save entry'), el('button', { type:'button', class:'ghost', onclick: () => { form.hidden = true; opener.hidden = false; } }, 'Cancel'), out));
-  const opener = el('button', { type:'button', class:'ghost', onclick: () => { form.hidden = false; opener.hidden = true; name.focus(); } }, '+ Add manually');
-  box.append(opener, form);
-  return box;
+    el('div', { class:'acts' }, el('button', { type:'submit' }, 'Save entry'), el('button', { type:'button', class:'ghost', onclick: () => dlg.close() }, 'Cancel'), out));
+  dlg.append(form);
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.append(dlg);
+  dlg.showModal();
+  name.focus();
 }
 
 function card(v, r) {
